@@ -16,3 +16,6 @@ RELATORIO_FINAL.md
 # sistema
 .DS_Store
 Thumbs.db
+
+# configuração local do Claude Code
+.claude/
