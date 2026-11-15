@@ -1,0 +1,324 @@
+{
+  "descricao": "Verdade do processo gerador (dados sintéticos). HRs são multiplicativos sobre o risco mensal-base.",
+  "seed": 42,
+  "n": 12000,
+  "risco_mensal_base": 0.035,
+  "hr": {
+    "canal": {
+      "busca_paga": 1.15,
+      "midia_paga": 1.5,
+      "social": 1.2,
+      "indicacao": 0.7,
+      "email_crm": 0.85
+    },
+    "plano_nao_anual": {
+      "combo": 0.75,
+      "estudante": 1.2
+    },
+    "dispositivo": {
+      "desktop": 1.0,
+      "tablet": 1.0
+    },
+    "engajamento_por_dp": 0.78,
+    "passe_copa": 1.6,
+    "reajuste_mensal_combo": 1.5,
+    "promo_periodos": {
+      "promo_vigente": 0.85,
+      "promo_penhasco": 3.0,
+      "promo_pos": 1.35
+    }
+  },
+  "anual": {
+    "hr_pre_renovacao": 0.1,
+    "taxa_mensal_na_renovacao": 0.45,
+    "mes_renovacao": 12
+  },
+  "causas": {
+    "p_invol_base": 0.12,
+    "p_invol_inicio": 0.3,
+    "p_invol_penhasco": 0.03,
+    "p_invol_renovacao": 0.1
+  },
+  "sobrevivencia_verdade": {
+    "global": {
+      "m12": {
+        "todos": 0.653979430675463,
+        "elegiveis": 0.6642559510107413,
+        "n_elegiveis": 5296
+      },
+      "m18": {
+        "todos": 0.5070152396028497,
+        "elegiveis": 0.5095952832481518,
+        "n_elegiveis": 2857
+      },
+      "m24": {
+        "todos": 0.4361476704914947,
+        "elegiveis": null,
+        "n_elegiveis": 0
+      }
+    },
+    "por_canal": {
+      "busca_paga": {
+        "m12": {
+          "todos": 0.6439135884654235,
+          "elegiveis": 0.654946873664237
+        },
+        "m18": {
+          "todos": 0.488400253570787,
+          "elegiveis": 0.4916383785581794
+        },
+        "m24": {
+          "todos": 0.41472829986160964,
+          "elegiveis": null
+        }
+      },
+      "email_crm": {
+        "m12": {
+          "todos": 0.7520930005669431,
+          "elegiveis": 0.7606382899113362
+        },
+        "m18": {
+          "todos": 0.6362278589797029,
+          "elegiveis": 0.6359294904823327
+        },
+        "m24": {
+          "todos": 0.5711973804227617,
+          "elegiveis": null
+        }
+      },
+      "indicacao": {
+        "m12": {
+          "todos": 0.8001231536232165,
+          "elegiveis": 0.8018880691130833
+        },
+        "m18": {
+          "todos": 0.6831586235449428,
+          "elegiveis": 0.6856678875917155
+        },
+        "m24": {
+          "todos": 0.6270417792101265,
+          "elegiveis": null
+        }
+      },
+      "midia_paga": {
+        "m12": {
+          "todos": 0.5297551208688863,
+          "elegiveis": 0.543675826014866
+        },
+        "m18": {
+          "todos": 0.35393074888510856,
+          "elegiveis": 0.3583708079385006
+        },
+        "m24": {
+          "todos": 0.28099875539422753,
+          "elegiveis": null
+        }
+      },
+      "organico": {
+        "m12": {
+          "todos": 0.6961521636492436,
+          "elegiveis": 0.7056388728441308
+        },
+        "m18": {
+          "todos": 0.5563105545336333,
+          "elegiveis": 0.561064131675993
+        },
+        "m24": {
+          "todos": 0.4852496302273244,
+          "elegiveis": null
+        }
+      },
+      "social": {
+        "m12": {
+          "todos": 0.5991143895131824,
+          "elegiveis": 0.6122556330521136
+        },
+        "m18": {
+          "todos": 0.44865171314954866,
+          "elegiveis": 0.4601838809956037
+        },
+        "m24": {
+          "todos": 0.37130364726709386,
+          "elegiveis": null
+        }
+      }
+    },
+    "por_plano": {
+      "anual": {
+        "m12": {
+          "todos": 0.9538304912781114,
+          "elegiveis": 0.9537471379942355
+        },
+        "m18": {
+          "todos": 0.5808885862395039,
+          "elegiveis": 0.5828752555301181
+        },
+        "m24": {
+          "todos": 0.5684428931205289,
+          "elegiveis": null
+        }
+      },
+      "combo": {
+        "m12": {
+          "todos": 0.6691096037489745,
+          "elegiveis": 0.6823663919880633
+        },
+        "m18": {
+          "todos": 0.5754837915870907,
+          "elegiveis": 0.5852592270216622
+        },
+        "m24": {
+          "todos": 0.49765695729822085,
+          "elegiveis": null
+        }
+      },
+      "estudante": {
+        "m12": {
+          "todos": 0.543222386174995,
+          "elegiveis": 0.5490185985626134
+        },
+        "m18": {
+          "todos": 0.4332114368862791,
+          "elegiveis": 0.4332250283797865
+        },
+        "m24": {
+          "todos": 0.3481028713198007,
+          "elegiveis": null
+        }
+      },
+      "mensal": {
+        "m12": {
+          "todos": 0.5853327022512194,
+          "elegiveis": 0.5962710836297195
+        },
+        "m18": {
+          "todos": 0.48037338907826127,
+          "elegiveis": 0.4810931486536669
+        },
+        "m24": {
+          "todos": 0.3975313770816756,
+          "elegiveis": null
+        }
+      }
+    },
+    "por_safra": {
+      "S1": {
+        "m12": {
+          "todos": 0.6526508152498726,
+          "elegiveis": 0.6526508152498726
+        },
+        "m18": {
+          "todos": 0.5038925871109564,
+          "elegiveis": 0.5038925871109564
+        },
+        "m24": {
+          "todos": 0.42720029372140583,
+          "elegiveis": null
+        }
+      },
+      "S2": {
+        "m12": {
+          "todos": 0.6733249837263237,
+          "elegiveis": 0.6733249837263237
+        },
+        "m18": {
+          "todos": 0.5173692586504727,
+          "elegiveis": 0.5173692586504727
+        },
+        "m24": {
+          "todos": 0.4465685316443996,
+          "elegiveis": null
+        }
+      },
+      "S3": {
+        "m12": {
+          "todos": 0.6799645304298874,
+          "elegiveis": 0.6799645304298874
+        },
+        "m18": {
+          "todos": 0.5231817724423226,
+          "elegiveis": null
+        },
+        "m24": {
+          "todos": 0.45354419824764947,
+          "elegiveis": null
+        }
+      },
+      "S4": {
+        "m12": {
+          "todos": 0.6552126443019939,
+          "elegiveis": 0.6552126443019939
+        },
+        "m18": {
+          "todos": 0.5108932765195728,
+          "elegiveis": null
+        },
+        "m24": {
+          "todos": 0.4405534954447792,
+          "elegiveis": null
+        }
+      },
+      "S5": {
+        "m12": {
+          "todos": 0.6357383181275619,
+          "elegiveis": null
+        },
+        "m18": {
+          "todos": 0.4956428297383708,
+          "elegiveis": null
+        },
+        "m24": {
+          "todos": 0.42755371725003866,
+          "elegiveis": null
+        }
+      },
+      "S6": {
+        "m12": {
+          "todos": 0.6548353580974658,
+          "elegiveis": null
+        },
+        "m18": {
+          "todos": 0.5121688822209263,
+          "elegiveis": null
+        },
+        "m24": {
+          "todos": 0.4415519260036522,
+          "elegiveis": null
+        }
+      },
+      "S7": {
+        "m12": {
+          "todos": 0.6190133186669255,
+          "elegiveis": null
+        },
+        "m18": {
+          "todos": 0.47292876393983957,
+          "elegiveis": null
+        },
+        "m24": {
+          "todos": 0.4039533939386026,
+          "elegiveis": null
+        }
+      },
+      "S8": {
+        "m12": {
+          "todos": 0.6766757618957133,
+          "elegiveis": null
+        },
+        "m18": {
+          "todos": 0.5308645357270152,
+          "elegiveis": null
+        },
+        "m24": {
+          "todos": 0.45910070541694076,
+          "elegiveis": null
+        }
+      }
+    }
+  },
+  "cif_verdade_m12": {
+    "voluntario": 0.2675604229607251,
+    "involuntario": 0.05041540785498489,
+    "fim_contrato": 0.0
+  }
+}
