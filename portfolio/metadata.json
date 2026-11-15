@@ -1,0 +1,16 @@
+{
+  "slug": "sobrevivencia-assinaturas",
+  "categoria": "Estatística aplicada",
+  "card": "Análise de sobrevivência da retenção de assinantes: Kaplan-Meier, log-rank com Holm, Cox com riscos proporcionais violados e corrigidos, RMST/LTV por canal e riscos competitivos, com 106 testes. Dados sintéticos, código aberto.",
+  "tecnologias": [
+    "Python",
+    "pandas",
+    "lifelines"
+  ],
+  "tipo_de_dado": "Sintético",
+  "meu_papel": "Projeto pessoal de análise estatística, com apoio de IA",
+  "demo_para": "public/demos/sobrevivencia-assinaturas.html",
+  "demo_url": "/demos/sobrevivencia-assinaturas.html",
+  "repositorio": "https://github.com/GabrielRangel101/survival-assinaturas",
+  "titulo": "Sobrevivência de assinantes: onde a retenção quebra"
+}
