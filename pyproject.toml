@@ -17,6 +17,7 @@ where = ["src"]
 pythonpath = ["src"]
 testpaths = ["tests"]
 addopts = "-q"
+markers = ["docs: testes que exigem results.json e os documentos gerados (python run_all.py)"]
 filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::FutureWarning",

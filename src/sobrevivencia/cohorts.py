@@ -65,7 +65,7 @@ def ponto(sub: pd.DataFrame, h: int, *, safra_exige_completa: bool) -> dict:
     motivo = ""
     if not ok:
         if safra_exige_completa and seg_min < h:
-            motivo = "safra sem tempo de observação (o último entrante só tem %.1f meses)" % seg_min
+            motivo = ("safra sem tempo de observação (o último entrante só tem %.1f meses)" % seg_min).replace(".", ",")
         else:
             motivo = "poucos assinantes em risco no horizonte"
     return {"valor": p["valor"] if ok else None, "lo": p["lo"] if ok else None,

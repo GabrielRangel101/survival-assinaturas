@@ -54,6 +54,23 @@ def serializar(res: dict) -> str:
 # Blocos
 # ------------------------------------------------------------------------------------
 
+def contar_testes() -> int | None:
+    """Número de testes pytest coletados (para citar nos documentos); None se indisponível."""
+    import subprocess
+    import sys
+    try:
+        r = subprocess.run([sys.executable, "-m", "pytest", "--collect-only", "tests"], cwd=str(C.RAIZ),
+                           capture_output=True, text=True, timeout=300)
+        txt = r.stdout + r.stderr
+        m = re.search(r"(\d+)\s+tests?\s+collected", txt)
+        if m:
+            return int(m.group(1))
+        por_arquivo = re.findall(r"^tests[/\]\S+\.py:\s*(\d+)\s*$", txt, flags=re.M)  # formato -qq
+        return int(sum(int(x) for x in por_arquivo)) if por_arquivo else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def _versoes() -> dict:
     out = {"python": platform.python_version()}
     for pkg in ("numpy", "pandas", "scipy", "lifelines", "statsmodels", "matplotlib"):
@@ -65,7 +82,7 @@ def _premissas(n_boot: int) -> dict:
     return {
         "seed": C.SEED, "n": C.N_ASSINANTES,
         "entrada_ini": str(C.ENTRADA_INI), "entrada_fim": str(C.ENTRADA_FIM), "corte": str(C.CORTE),
-        "alpha": C.ALPHA, "nivel_ic": 1 - C.ALPHA, "min_em_risco": C.MIN_EM_RISCO,
+        "alpha": C.ALPHA, "nivel_ic": 1 - C.ALPHA, "dias_por_mes": C.DIAS_POR_MES, "min_em_risco": C.MIN_EM_RISCO,
         "horizontes": list(C.HORIZONTES), "metas": {f"m{h}": C.METAS[h] for h in C.HORIZONTES},
         "risco_mensal_base": C.HAZARD_BASE,
         "promo": {"desconto": C.PROMO_DESCONTO, "meses": C.PROMO_MESES},
@@ -169,7 +186,7 @@ def _km_vs_verdade(comp: dict, gt: dict) -> list[dict]:
 
 
 def montar_resultados(df: pd.DataFrame, lat: S.Latente, n_boot: int = C.N_BOOT,
-                      com_riscos_competitivos: bool = True, log=print) -> tuple[dict, dict]:
+                      com_riscos_competitivos: bool = True, log=print, contar: bool = True) -> tuple[dict, dict]:
     """Executa A–H e devolve (results, objetos_brutos). Cada etapa registra o tempo."""
     t0 = time.time()
     gt = S.construir_ground_truth(df, lat)
@@ -177,7 +194,7 @@ def montar_resultados(df: pd.DataFrame, lat: S.Latente, n_boot: int = C.N_BOOT,
     def marca(nome):
         log(f"  [{time.time() - t0:5.1f}s] {nome}")
 
-    res: dict = {"meta": {"versoes": _versoes(), "projeto": "Sobrevivência de assinantes — Gazeta Meridiano (sintético)"},
+    res: dict = {"meta": {"versoes": _versoes(), "n_testes": contar_testes() if contar else None, "projeto": "Sobrevivência de assinantes — Gazeta Meridiano (sintético)"},
                  "premissas": _premissas(n_boot)}
     res["dados"] = H.resumo_dados(df)
     marca("A. desenho")
@@ -208,6 +225,13 @@ def montar_resultados(df: pd.DataFrame, lat: S.Latente, n_boot: int = C.N_BOOT,
     res["verdade"] = {"sobrevivencia": gt["sobrevivencia_verdade"], "cif_m12": gt["cif_verdade_m12"]}
     marca("explorador")
     return res, {"gt": gt, "cox": brutos, "df": df, "lat": lat}
+
+
+def adicionar_riscos_competitivos(res: dict, extra: dict, n_boot: int = C.N_BOOT, log=print) -> dict:
+    """Seção G (riscos competitivos): separada para poder rodar só depois da trava de testes."""
+    res["riscos_competitivos"] = G.analise(extra["df"], extra["gt"], n_boot=max(100, n_boot // 5))
+    log("  G. riscos competitivos")
+    return res
 
 
 def executar(n_boot: int = C.N_BOOT, com_riscos_competitivos: bool = True, escrever: bool = True,
