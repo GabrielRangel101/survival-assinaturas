@@ -201,14 +201,17 @@ Z95 = 1.959963984540054
 # --------------------------------------------------------------------------------------
 # Valor por canal: premissas FICTÍCIAS e editáveis
 # --------------------------------------------------------------------------------------
-CAC = {  # custo de aquisição por assinante (R$) -- premissa
-    "organico": 25.0,
-    "busca_paga": 110.0,
-    "midia_paga": 80.0,
-    "social": 75.0,
-    "indicacao": 60.0,
-    "email_crm": 30.0,
+CAC = {  # custo de aquisição por assinante (R$) -- premissa fictícia
+    "organico": 30.0,      # custo editorial/SEO alocado
+    "busca_paga": 95.0,
+    "midia_paga": 52.0,    # o canal PAGO mais barato por assinante
+    "social": 60.0,
+    "indicacao": 56.0,     # bônus do programa de indicação
+    "email_crm": 22.0,     # base própria
 }
+# Canais que recebem verba incremental (escaláveis). Orgânico e e-mail/CRM são canais próprios,
+# de capacidade limitada: aparecem na tabela, mas não entram na realocação de verba.
+CANAIS_ESCALAVEIS = ("busca_paga", "midia_paga", "social", "indicacao")
 TAXA_DESCONTO_ANUAL = 0.12  # taxa de desconto anual para o LTV
 HORIZONTE_LTV = 24  # meses
 VERBA_EXEMPLO = 100_000.0  # R$ realocados no exemplo de decisão
@@ -216,7 +219,7 @@ VERBA_EXEMPLO = 100_000.0  # R$ realocados no exemplo de decisão
 # Ação no mês 3 da promoção (premissas de PROJEÇÃO; não medidas)
 ACAO_EFETIVIDADES = (0.15, 0.35, 0.50)  # fração do excesso de cancelamentos evitada
 ACAO_EFETIVIDADE_BASE = 0.35
-ACAO_CUSTO_POR_ASSINANTE = 6.0  # R$ por assinante tratado no mês 3
+ACAO_CUSTO_POR_ASSINANTE = 4.0  # R$ por assinante tratado no mês 3 (oferta no app/e-mail)
 ACAO_COORTE_REFERENCIA = "black_friday_2025"
 
 # Armadilhas
