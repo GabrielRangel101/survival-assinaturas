@@ -40,6 +40,9 @@ class KM:
         return (s, *_ic_loglog(s, g, nivel))
 
     def em_varios(self, ts: np.ndarray) -> np.ndarray:
+        ts = np.asarray(ts, dtype=float)
+        if len(self.t) == 0:  # sem eventos: S = 1 em todo t
+            return np.ones(ts.shape)
         idx = np.searchsorted(self.t, ts, side="right") - 1
         return np.where(idx >= 0, self.S[np.maximum(idx, 0)], 1.0)
 

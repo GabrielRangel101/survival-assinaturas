@@ -21,3 +21,8 @@ def df(sim):
 @pytest.fixture(scope="session")
 def latente(sim):
     return sim[1]
+
+
+@pytest.fixture(scope="session")
+def gt(df, latente):
+    return S.construir_ground_truth(df, latente)
