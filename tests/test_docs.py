@@ -219,6 +219,7 @@ def test_nenhuma_mencao_a_empresa_real():
         except UnicodeDecodeError:
             continue
         txt = re.sub(r"data:image/[a-z]+;base64,[a-za-z0-9+/=]+", "", txt)
+        txt = re.sub(r'"image/png":\s*"[^"]*"', "", txt)  # saídas de notebook em base64
         txt = re.sub(r'"(?:s|h|lo|hi|nr|ev|n)":\[[^\]]*\]', "", txt)
         for termo in proibidos:
             assert not re.search(rf"\b{re.escape(termo)}\b", txt), f"{termo!r} em {p}"
