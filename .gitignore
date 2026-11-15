@@ -1,0 +1,18 @@
+# ambientes e caches
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+*.egg-info/
+
+# dados gerados (determinísticos: regenere com python run_all.py)
+data/
+
+# relatório interno de entrega (não versionar)
+RELATORIO_FINAL.md
+
+# sistema
+.DS_Store
+Thumbs.db
