@@ -9,7 +9,7 @@ stack_completa: Python, pandas, NumPy, SciPy, lifelines, statsmodels, Matplotlib
 tecnologias: [Python, pandas, lifelines]
 demo: /demos/sobrevivencia-assinaturas.html
 codigo: https://github.com/GabrielRangel101/survival-assinaturas
-card: ver portfolio/card.txt
+card: "{% filter trim %}{% include 'card.template.txt' %}{% endfilter %}"
 ---
 
 # Sobrevivência de assinantes: onde a retenção quebra
@@ -61,6 +61,9 @@ Sem impacto medido em operação real: os dados são sintéticos e o valor em R$
 - Retenção ingênua × Kaplan-Meier por safra, com M12/M18/M24 vazios onde a safra não tem tempo de observação
 - Log-rank por canal, plano e safra, com pares corrigidos por Holm ({{ comparacoes.safra.n_sig_bruto }} de {{ comparacoes.safra.n_pares }} pares entre safras significativos sem correção, {{ comparacoes.safra.n_sig_holm }} com Holm)
 - Cox com violação de riscos proporcionais mostrada (Schoenfeld) e corrigida (estrato por plano, promoção por períodos), com tabela de efeito plantado × estimado ({{ cox.cobertura.corrigido|pct(0) }} dos IC 95% cobrem o valor plantado)
+{% if recuperacao_mc is defined %}
+- Validação em {{ recuperacao_mc.n_replicas|int }} réplicas de seed: IC 95% cobrindo o efeito plantado em {{ recuperacao_mc.cobertura_total|pct(0) }} dos casos
+{% endif %}
 - RMST e LTV descontado por canal contra o CAC, com payback e IC por bootstrap
 - Seção "O que poderia ter dado errado": censura ignorada, riscos proporcionais violados e ranking por M12 bruto com safra pequena
 - Riscos competitivos (voluntário × involuntário × fim de contrato) por Aalen-Johansen

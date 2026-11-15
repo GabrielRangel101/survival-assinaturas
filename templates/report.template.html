@@ -514,9 +514,24 @@
           <figcaption>Efeito plantado (losango vermelho) × estimado. O ingênuo erra onde a premissa é violada (anual, promoção, Passe Copa); o corrigido recupera os efeitos.</figcaption>
         </figure>
         <p>
-          Note um efeito colateral: com a premissa violada, o ingênuo também distorce covariáveis que <em>não</em> violam. O HR de Estudante sai {{ d.coef_ing.plano_estudante.hr|hr }} no ingênuo,
-          contra {{ d.coef_ing.plano_estudante.verdade|hr }} plantado.
+          Note um efeito colateral: com a premissa violada, o ingênuo também distorce (e o teste chega a sinalizar) covariáveis cujo efeito plantado é <em>constante</em>. O HR de Estudante sai {{ d.coef_ing.plano_estudante.hr|hr }} no ingênuo,
+          contra {{ d.coef_ing.plano_estudante.verdade|hr }} plantado; no modelo sem o anual, volta a {{ cox.complementar_plano[1].hr|hr }}.
         </p>
+        {% if recuperacao_mc is defined %}
+        <div class="factbox">
+          <h4>Não é sorte da seed</h4>
+          <p>
+            Repeti a estimação do modelo corrigido em <strong>{{ recuperacao_mc.n_replicas|int }} conjuntos sintéticos</strong> (seeds diferentes, mesmo gerador). O maior viés relativo médio entre os efeitos
+            foi de {{ recuperacao_mc.vies_abs_max|pct(1) }}, e o IC 95% cobriu o valor plantado em <strong>{{ recuperacao_mc.cobertura_total|pct(0) }}</strong> dos {{ recuperacao_mc.n_intervalos|int }} intervalos.
+          </p>
+          <div class="table-wrap" style="margin-bottom:0"><table>
+            <tr><th>Efeito</th><th class="num">Plantado</th><th class="num">Média estimada</th><th class="num">Viés</th><th class="num">Cobertura</th></tr>
+            {% for e in recuperacao_mc.efeitos %}
+            <tr><td>{{ e.rotulo }}</td><td class="num">{{ e.verdade|hr }}</td><td class="num">{{ e.media_hr|hr }}</td><td class="num">{{ e.vies_rel|pct(1) }}</td><td class="num">{{ e.cobertura|pct(0) }}</td></tr>
+            {% endfor %}
+          </table></div>
+        </div>
+        {% endif %}
       </section>
 
       <!-- ============================ E ============================ -->

@@ -74,6 +74,9 @@ dúvida, escolhi a opção mais simples e a registrei aqui. Os números abaixo v
   depois desce, sem tendência linear); o teste por faixas detecta. Os dois aparecem no relatório.
 - **C-index**: Harrell com covariáveis do instante do evento; no modelo estratificado compara só assinantes do mesmo plano (por isso não é diretamente comparável).
 
+- **Validação em réplicas** (`montecarlo.py`): o Cox corrigido é reajustado em novos conjuntos sintéticos (seeds diferentes) para medir viés e cobertura
+  fora da seed oficial; com `--rapido` o número de réplicas diminui.
+
 ## Valor por canal (E)
 
 - **LTV descontado em {{ premissas.horizonte_ltv }} meses** = soma, por mensalidade (cobrança no início do mês), de ARPU × sobrevivência KM do canal × desconto

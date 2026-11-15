@@ -24,7 +24,7 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 from sobrevivencia import config as C  # noqa: E402
-from sobrevivencia import docs, figures, notebooks, pipeline  # noqa: E402
+from sobrevivencia import docs, figures, montecarlo, notebooks, pipeline  # noqa: E402
 from sobrevivencia import simulate as S  # noqa: E402
 
 
@@ -53,6 +53,9 @@ def main() -> int:
         return 1
     print("2/5 Seção G: riscos competitivos")
     pipeline.adicionar_riscos_competitivos(res, extra, n_boot)
+    n_mc = montecarlo.MC_REPLICAS_RAPIDO if args.rapido else montecarlo.MC_REPLICAS
+    print(f"    Validação do Cox corrigido em {n_mc} réplicas (seeds diferentes)")
+    res["recuperacao_mc"] = montecarlo.recuperacao(n_rep=n_mc)
     S.salvar_ground_truth(extra["gt"])
     C.RESULTS_JSON.write_text(pipeline.serializar(res), encoding="utf-8")
     print(f"    {C.RESULTS_JSON.relative_to(RAIZ)} gravado")

@@ -118,6 +118,12 @@ O modelo **ingênuo** (riscos proporcionais, um HR por covariável) viola a prem
 Cobertura dos IC 95% sobre os efeitos plantados: {{ cox.cobertura.corrigido|pct(0) }} no corrigido ({{ cox.cobertura.n_corrigido }} efeitos) contra
 {{ cox.cobertura.ingenuo|pct(0) }} no ingênuo.
 
+{% if recuperacao_mc is defined %}
+**Validação em {{ recuperacao_mc.n_replicas|int }} réplicas** (seeds diferentes, mesmo gerador): o maior viés relativo médio entre os efeitos foi de
+{{ recuperacao_mc.vies_abs_max|pct(1) }} e os IC 95% cobriram o valor plantado em {{ recuperacao_mc.cobertura_total|pct(0) }} dos
+{{ recuperacao_mc.n_intervalos|int }} intervalos, ou seja, o resultado acima não depende da seed oficial.
+{% endif %}
+
 ### E. Valor por canal (RMST, LTV descontado, CAC, payback)
 
 | Canal | CAC (premissa) | RMST {{ premissas.horizonte_ltv }}m (meses) | LTV {{ premissas.horizonte_ltv }}m (R$) | % medido | LTV/CAC | Payback (mensalidades) |
