@@ -1,0 +1,898 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gazeta Meridiano — Edição Especial: Sobrevivência de assinantes</title>
+<meta name="description" content="Relatório interativo (dados 100% sintéticos): análise de sobrevivência aplicada à retenção de assinaturas, com explorador de curvas de Kaplan-Meier.">
+{% raw %}
+<style>
+  :root {
+    --paper: #EAE4D4; --paper-raised: #F3EFE4; --ink: #1C1A15; --ink-muted: #5B5648; --ink-faint: #8A8572;
+    --rule: #C6BEA6; --rule-strong: #1C1A15; --meridian: #1F3A5F; --meridian-soft: #3D5A7D; --red: #8C1D1D;
+    --good: #2F6846; --good-bg: #DEE6DA; --bad: #8C1D1D; --bad-bg: #EADBD4; --warn: #7A5A12; --warn-bg: #EFE6C8;
+    --focus: #1F3A5F; --chart-bg: #FBF8F0;
+    --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Times New Roman", serif;
+    --font-body: "Iowan Old Style", Georgia, "Times New Roman", serif;
+  }
+  :root[data-theme="dark"] {
+    --paper: #15171A; --paper-raised: #1C1F23; --ink: #E7E2D2; --ink-muted: #AFA996; --ink-faint: #76715F;
+    --rule: #34363A; --rule-strong: #E7E2D2; --meridian: #8FB4DC; --meridian-soft: #6F93B8; --red: #D97E7E;
+    --good: #7FBF9B; --good-bg: #1E2A22; --bad: #D97E7E; --bad-bg: #2B1E1E; --warn: #DDBE6A; --warn-bg: #2E2A18;
+    --focus: #8FB4DC; --chart-bg: #1C1F23;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #15171A; --paper-raised: #1C1F23; --ink: #E7E2D2; --ink-muted: #AFA996; --ink-faint: #76715F;
+      --rule: #34363A; --rule-strong: #E7E2D2; --meridian: #8FB4DC; --meridian-soft: #6F93B8; --red: #D97E7E;
+      --good: #7FBF9B; --good-bg: #1E2A22; --bad: #D97E7E; --bad-bg: #2B1E1E; --warn: #DDBE6A; --warn-bg: #2E2A18;
+      --focus: #8FB4DC; --chart-bg: #1C1F23;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 17px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  a { color: var(--meridian); }
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+  ::selection { background: var(--meridian); color: var(--paper); }
+  #progress { position: fixed; top: 0; left: 0; height: 3px; width: 0%; background: var(--red); z-index: 60; transition: width 80ms linear; }
+  .utilitybar { position: fixed; top: 10px; right: 10px; z-index: 55; display: flex; gap: 6px; align-items: center; }
+  .utilitybar button { font-family: var(--font-body); font-size: 0.74rem; letter-spacing: .04em; background: var(--paper-raised); color: var(--ink); border: 1px solid var(--rule); padding: 6px 10px; cursor: pointer; border-radius: 3px; }
+  .utilitybar button:hover { border-color: var(--ink-muted); }
+  .utilitybar .toast { position: absolute; top: 110%; right: 0; background: var(--ink); color: var(--paper); font-size: 0.72rem; padding: 4px 9px; border-radius: 3px; opacity: 0; pointer-events: none; transition: opacity 180ms ease; white-space: nowrap; }
+  .utilitybar .toast.show { opacity: 1; }
+  .page { max-width: 1180px; margin: 0 auto; padding: 0 20px 80px; }
+  .masthead { padding: 34px 0 14px; text-align: center; position: relative; }
+  @media (min-width: 561px) { .masthead { padding-left: 150px; padding-right: 150px; } }
+  .masthead .dateline { font-size: 0.74rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-muted); display: flex; justify-content: center; gap: 18px; margin-bottom: 10px; flex-wrap: wrap; }
+  .nameplate { font-family: var(--font-display); font-weight: 900; font-size: clamp(2.6rem, 7.4vw, 5.4rem); letter-spacing: -0.01em; line-height: 0.92; margin: 0; }
+  .nameplate .accent-dot { color: var(--red); }
+  .masthead .tagline { font-style: italic; color: var(--ink-muted); font-size: 0.92rem; margin: 6px 0 0; }
+  .rule-thick { border: none; border-top: 3px solid var(--rule-strong); margin: 16px 0 3px; }
+  .rule-thin { border: none; border-top: 1px solid var(--rule-strong); margin: 0 0 18px; }
+  .stamp { position: absolute; top: 36px; right: 10px; width: 112px; height: 112px; border: 2px solid var(--red); border-radius: 50%; color: var(--red); display: flex; align-items: center; justify-content: center; text-align: center; transform: rotate(-11deg); font-weight: 700; font-size: 0.62rem; letter-spacing: .06em; text-transform: uppercase; line-height: 1.25; padding: 10px; opacity: 0.92; }
+  .stamp::before { content: ""; position: absolute; inset: 5px; border: 1px dashed var(--red); border-radius: 50%; }
+  .hero { padding: 10px 0 30px; text-align: center; }
+  .kicker { display: inline-block; font-weight: 700; font-size: 0.76rem; letter-spacing: .14em; text-transform: uppercase; color: var(--red); margin-bottom: 10px; }
+  .headline { font-family: var(--font-display); font-weight: 600; font-size: clamp(2rem, 4.6vw, 3.25rem); line-height: 1.07; margin: 0 auto 14px; max-width: 20ch; }
+  .deck { font-style: italic; font-size: 1.2rem; color: var(--ink-muted); max-width: 60ch; margin: 0 auto 16px; line-height: 1.55; }
+  .byline { font-size: 0.82rem; color: var(--ink-muted); letter-spacing: .02em; }
+  .byline strong { color: var(--ink); }
+  .ledger { display: flex; justify-content: center; margin: 30px 0 6px; border-top: 1px solid var(--rule-strong); border-bottom: 1px solid var(--rule-strong); padding: 20px 0; flex-wrap: wrap; }
+  .ledger .stat { flex: 1 1 200px; text-align: center; padding: 0 22px; border-left: 1px solid var(--rule); }
+  .ledger .stat:first-child { border-left: none; }
+  .ledger .stat .num { font-family: var(--font-display); font-weight: 700; font-size: clamp(1.8rem, 4vw, 2.5rem); display: block; }
+  .ledger .stat .num.is-good { color: var(--good); }
+  .ledger .stat .num.is-bad { color: var(--bad); }
+  .ledger .stat .label { font-size: 0.78rem; color: var(--ink-muted); margin-top: 4px; display: block; }
+  .lede { max-width: 68ch; margin: 22px auto 0; font-size: 1.05rem; text-align: left; }
+  .grid { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 48px; margin-top: 44px; align-items: start; }
+  @media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); gap: 20px; } }
+  .sidebar { position: sticky; top: 20px; }
+  @media (max-width: 860px) { .sidebar { position: static; } }
+  .sidebar .box { border-top: 2px solid var(--rule-strong); padding-top: 12px; margin-bottom: 26px; }
+  .sidebar h5 { font-size: 0.72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-muted); margin: 0 0 10px; font-weight: 700; }
+  .sidebar nav ul { list-style: none; margin: 0; padding: 0; }
+  .sidebar nav li { margin-bottom: 7px; }
+  .sidebar nav a { color: var(--ink); text-decoration: none; font-size: 0.92rem; display: block; padding: 2px 0 2px 10px; border-left: 2px solid transparent; }
+  .sidebar nav a:hover { color: var(--meridian); }
+  .sidebar nav a.active { border-left-color: var(--red); color: var(--red); font-weight: 600; }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 0.86rem; margin-bottom: 10px; }
+  .switch { position: relative; width: 38px; height: 20px; flex: none; }
+  .switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+  .switch .track { position: absolute; inset: 0; background: var(--rule); border-radius: 999px; transition: background 150ms ease; }
+  .switch .thumb { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: var(--paper-raised); border: 1px solid var(--ink-faint); border-radius: 50%; transition: transform 150ms ease; }
+  .switch input:checked ~ .track { background: var(--meridian); }
+  .switch input:checked ~ .thumb { transform: translateX(18px); border-color: var(--meridian); }
+  article section { margin-bottom: 54px; scroll-margin-top: 16px; }
+  .section-kicker { font-size: 0.76rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--red); margin-bottom: 6px; }
+  article h2 { font-family: var(--font-display); font-weight: 600; font-size: clamp(1.5rem, 2.9vw, 2.05rem); margin: 0 0 18px; padding-bottom: 12px; border-bottom: 1px solid var(--rule-strong); }
+  article h3 { font-family: var(--font-display); font-weight: 600; font-size: 1.28rem; margin: 30px 0 10px; }
+  article p, article li { max-width: 70ch; }
+  article p { margin: 0 0 16px; }
+  article ul, article ol { margin: 0 0 16px; padding-left: 22px; }
+  article li { margin-bottom: 6px; }
+  code { background: var(--paper-raised); border: 1px solid var(--rule); padding: 1px 6px; border-radius: 3px; font-size: 0.88em; font-family: ui-monospace, "SF Mono", Consolas, monospace; }
+  .table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 10px 0 24px; }
+  table { width: 100%; border-collapse: collapse; margin: 0; font-size: 0.93rem; }
+  @media (max-width: 560px) { table { font-size: 0.84rem; } th, td { padding: 7px 8px !important; white-space: nowrap; } }
+  th, td { text-align: left; padding: 8px 11px; border-bottom: 1px solid var(--rule); }
+  th { font-weight: 700; font-size: 0.74rem; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-muted); border-bottom: 2px solid var(--rule-strong); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.vazio { color: var(--ink-faint); text-align: center; }
+  tr:last-child td { border-bottom: 1px solid var(--rule-strong); }
+  .pill { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; margin-left: 4px; white-space: nowrap; }
+  .pill.good { background: var(--good-bg); color: var(--good); }
+  .pill.bad { background: var(--bad-bg); color: var(--bad); }
+  .pill.warn { background: var(--warn-bg); color: var(--warn); }
+  .tag-med, .tag-proj { display: inline-block; font-size: 0.68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 1px 7px; border-radius: 3px; vertical-align: middle; }
+  .tag-med { background: var(--good-bg); color: var(--good); }
+  .tag-proj { background: var(--warn-bg); color: var(--warn); }
+  figure { margin: 24px 0; }
+  figure img { max-width: 100%; height: auto; border: 1px solid var(--rule-strong); background: #FBF8F0; display: block; }
+  figcaption { font-size: 0.86rem; font-style: italic; color: var(--ink-muted); margin-top: 8px; max-width: 70ch; }
+  blockquote.pullquote { margin: 36px 0; padding: 18px 0; border-top: 1px solid var(--rule-strong); border-bottom: 1px solid var(--rule-strong); text-align: center; }
+  blockquote.pullquote .pq-num { font-family: var(--font-display); font-weight: 700; font-size: clamp(2.1rem, 5vw, 3.1rem); color: var(--red); display: block; line-height: 1; }
+  blockquote.pullquote .pq-cap { font-size: 0.92rem; color: var(--ink-muted); margin-top: 8px; font-style: italic; display: block; }
+  .factbox { border: 1px solid var(--rule-strong); padding: 16px 20px; margin: 18px 0 24px; background: var(--paper-raised); }
+  .factbox h4 { font-size: 0.78rem; letter-spacing: .1em; text-transform: uppercase; margin: 0 0 10px; color: var(--ink-muted); }
+  .factbox p:last-child, .factbox ul:last-child { margin-bottom: 0; }
+  .caveat { border-left: 3px solid var(--red); padding: 4px 0 4px 16px; margin: 16px 0; font-size: 0.95rem; color: var(--ink-muted); }
+  .accordion { border-top: 1px solid var(--rule-strong); }
+  details.acc-item { border-bottom: 1px solid var(--rule-strong); }
+  details.acc-item summary { cursor: pointer; list-style: none; padding: 16px 4px; display: flex; align-items: baseline; justify-content: space-between; gap: 16px; font-family: var(--font-display); font-weight: 600; font-size: 1.12rem; }
+  details.acc-item summary::-webkit-details-marker { display: none; }
+  details.acc-item summary .chev { font-weight: 400; color: var(--ink-faint); transition: transform 180ms ease; flex: none; }
+  details.acc-item[open] summary .chev { transform: rotate(45deg); }
+  details.acc-item summary .result-tag { font-family: var(--font-body); font-weight: 600; font-size: 0.78rem; color: var(--red); margin-right: auto; margin-left: 14px; }
+  .acc-body { padding: 0 4px 22px; }
+  /* explorador */
+  .explorer { border: 1px solid var(--rule-strong); background: var(--paper-raised); padding: 18px 20px; margin: 10px 0 24px; }
+  .ex-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px 16px; margin-bottom: 14px; align-items: end; }
+  .ex-controls label, .ex-label { display: block; font-size: 0.74rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-muted); margin-bottom: 4px; font-weight: 700; }
+  .ex-controls select, .ex-controls input[type=number] { width: 100%; font-family: var(--font-body); font-size: 0.95rem; padding: 7px 8px; background: var(--paper); color: var(--ink); border: 1px solid var(--rule); border-radius: 3px; }
+  .seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 3px; overflow: hidden; }
+  .seg button { font-family: var(--font-body); font-size: 0.92rem; padding: 7px 14px; background: var(--paper); color: var(--ink); border: none; border-right: 1px solid var(--rule); cursor: pointer; }
+  .seg button:last-child { border-right: none; }
+  .seg button[aria-pressed="true"] { background: var(--meridian); color: var(--paper); font-weight: 700; }
+  .ex-chart { background: var(--chart-bg); border: 1px solid var(--rule); }
+  .ex-chart svg { display: block; width: 100%; height: auto; }
+  .ex-chart text { fill: var(--ink-muted); font-family: var(--font-body); font-size: 11px; }
+  .ex-chart .gridl { stroke: var(--rule); stroke-width: 0.6; }
+  .ex-chart .axis { stroke: var(--ink-muted); stroke-width: 1; }
+  .ex-chart .km { fill: none; stroke: var(--meridian); stroke-width: 2.2; }
+  .ex-chart .ci { fill: var(--meridian); opacity: 0.16; stroke: none; }
+  .ex-chart .base { fill: none; stroke: var(--ink-faint); stroke-width: 1.4; stroke-dasharray: 5 4; }
+  .ex-chart .meta { stroke: var(--red); stroke-width: 1.6; stroke-dasharray: 2 3; }
+  .ex-chart .hline { stroke: var(--ink-muted); stroke-width: 1; stroke-dasharray: 2 3; }
+  .ex-chart .ponto { fill: var(--red); stroke: var(--chart-bg); stroke-width: 1.5; }
+  .ex-readout { margin-top: 12px; font-size: 1rem; }
+  .ex-readout .big { font-family: var(--font-display); font-weight: 700; font-size: 1.9rem; }
+  .ex-readout .vazio { color: var(--warn); font-weight: 600; }
+  .ex-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.82rem; color: var(--ink-muted); margin-top: 8px; }
+  .ex-legend i { display: inline-block; width: 22px; height: 0; border-top: 3px solid; vertical-align: middle; margin-right: 6px; }
+  .metas-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: end; margin: 8px 0 16px; }
+  .metas-row .m { width: 110px; }
+  .metas-row label { display: block; font-size: 0.74rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-muted); font-weight: 700; margin-bottom: 4px; }
+  .metas-row input { width: 100%; font-family: var(--font-body); font-size: 0.95rem; padding: 6px 8px; background: var(--paper); color: var(--ink); border: 1px solid var(--rule); border-radius: 3px; }
+  .decisao { border: 2px solid var(--rule-strong); padding: 20px 24px; margin: 22px 0; background: var(--paper-raised); }
+  .decisao h4 { margin: 0 0 8px; font-family: var(--font-display); font-size: 1.15rem; }
+  .colophon { margin-top: 56px; padding-top: 20px; border-top: 3px double var(--rule-strong); color: var(--ink-muted); font-size: 0.86rem; text-align: center; }
+  .colophon p { max-width: 64ch; margin: 0 auto 8px; }
+  @media (max-width: 560px) {
+    .stamp { position: static; margin: 14px auto 0; transform: rotate(-4deg); }
+    .masthead .dateline { flex-direction: column; gap: 4px; }
+    .utilitybar { position: static; width: 100%; justify-content: flex-end; padding: 8px 4px; background: var(--paper); border-bottom: 1px solid var(--rule); }
+  }
+  @media print {
+    .utilitybar, #progress, .sidebar .box:nth-child(2), .ex-controls { display: none !important; }
+    .grid { grid-template-columns: 1fr; }
+    details.acc-item:not([open]) > .acc-body { display: block; }
+  }
+</style>
+{% endraw %}
+</head>
+<body>
+<div id="progress"></div>
+
+<div class="utilitybar">
+  <div style="position:relative;">
+    <button id="btnCopy" type="button">Copiar link</button>
+    <span class="toast" id="toastCopy">Link copiado</span>
+  </div>
+  <button id="btnPrint" type="button">Imprimir</button>
+  <button id="btnNight" type="button" aria-pressed="false">Edição noturna</button>
+</div>
+
+<div class="page">
+
+  <header class="masthead">
+    <div class="stamp">Dados<br>100% sintéticos<br>empresa fictícia</div>
+    <div class="dateline">
+      <span>Edição especial</span>
+      <span>Equipe de Dados</span>
+      <span>Dados até {{ premissas.corte|data }}</span>
+    </div>
+    <h1 class="nameplate">GAZETA MERIDIANO<span class="accent-dot">.</span></h1>
+    <p class="tagline">Análise de sobrevivência aplicada à retenção — seção de assinaturas digitais</p>
+    <hr class="rule-thick">
+    <hr class="rule-thin">
+  </header>
+
+  <section class="hero">
+    <div class="kicker">Análise de dados · Sobrevivência</div>
+    <h2 class="headline">{% if d.inverte %}A retenção quebra no mês seguinte à promoção, e o canal mais barato não é o que mais rende{% else %}A retenção quebra no mês seguinte à promoção{% endif %}</h2>
+    <p class="deck">
+      Quanto tempo cada tipo de assinante permanece, onde a retenção cai e qual canal merece a verba quando se
+      conta a permanência, e não só o custo de aquisição. Tudo sobre dados 100% sintéticos, com os efeitos
+      plantados de propósito para mostrar que o método recupera o efeito certo.
+    </p>
+    <p class="byline">Por <strong>Gabriel Rangel</strong> · Análise de Dados · seed {{ premissas.seed }}, pipeline reprodutível</p>
+
+    <div class="ledger">
+      <div class="stat">
+        <span class="num" data-countup="{{ (ingenuo_vs_km.global.m12.valor * 100)|round(2) }}" data-suffix="%" data-decimals="1">{{ ingenuo_vs_km.global.m12.valor|pct }}</span>
+        <span class="label">Retenção em M12 (Kaplan-Meier), IC 95% {{ ingenuo_vs_km.global.m12.lo|pct }} a {{ ingenuo_vs_km.global.m12.hi|pct }}</span>
+      </div>
+      <div class="stat">
+        <span class="num is-bad" data-countup="{{ d.pen.hr|round(3) }}" data-suffix="×" data-decimals="2">{{ d.pen.hr|hr }}×</span>
+        <span class="label">Risco de cancelar no mês seguinte ao fim da promoção (Cox corrigido)</span>
+      </div>
+      <div class="stat">
+        <span class="num is-good" data-countup="{{ d.canal_melhor.ltv_cac.est|round(3) }}" data-suffix="×" data-decimals="1">{{ d.canal_melhor.ltv_cac.est|n(1) }}×</span>
+        <span class="label">Retorno por real em {{ d.canal_melhor.rotulo }}, o melhor canal com verba (LTV/CAC)</span>
+      </div>
+    </div>
+
+    <p class="lede">
+      <strong>Recomendação do projeto:</strong> priorizar a verba em {{ d.canal_melhor.rotulo }} e tirar de {{ d.canal_pior.rotulo }}, e
+      tratar o mês 3 da promoção com uma ação de retenção barata. Os valores em R$ são <strong>projeções</strong> sobre premissas
+      explícitas, separadas do que foi <strong>medido</strong> nas Seções B a D (ver Seção E).
+    </p>
+  </section>
+
+  <div class="grid">
+    <aside class="sidebar">
+      <div class="box">
+        <h5>Nesta edição</h5>
+        <nav id="toc">
+          <ul>
+            <li><a href="#secao-a">A — Desenho</a></li>
+            <li><a href="#secao-b">B — Ingênuo × Kaplan-Meier</a></li>
+            <li><a href="#explorador">Explorador interativo</a></li>
+            <li><a href="#secao-c">C — Comparações</a></li>
+            <li><a href="#secao-d">D — Cox e riscos proporcionais</a></li>
+            <li><a href="#secao-e">E — Valor por canal e decisão</a></li>
+            <li><a href="#secao-f">F — O que poderia ter dado errado</a></li>
+            <li><a href="#secao-g">G — Riscos competitivos</a></li>
+            <li><a href="#secao-h">H — Limites honestos</a></li>
+          </ul>
+        </nav>
+      </div>
+      <div class="box">
+        <h5>Preferências de leitura</h5>
+        <div class="toggle-row">
+          <span>Edição noturna</span>
+          <label class="switch">
+            <input type="checkbox" id="chkNight" aria-label="Alternar edição noturna">
+            <span class="track"></span>
+            <span class="thumb"></span>
+          </label>
+        </div>
+      </div>
+      <div class="box">
+        <h5>Fonte</h5>
+        <p style="font-size:0.85rem;color:var(--ink-muted);margin:0;">
+          Código, notebooks, testes e dados sintéticos no
+          <a href="https://github.com/GabrielRangel101/survival-assinaturas" target="_blank" rel="noopener">repositório no GitHub</a>.
+          Todo número desta página vem de <code>results.json</code>.
+        </p>
+      </div>
+    </aside>
+
+    <article>
+
+      <!-- ============================ A ============================ -->
+      <section id="secao-a">
+        <div class="section-kicker">Seção A</div>
+        <h2>Desenho: evento, origem do tempo, corte e censura</h2>
+        <div class="factbox">
+          <h4>Definições</h4>
+          <ul>
+            <li><strong>Evento:</strong> cancelamento efetivo da assinatura (fim do acesso pago). Três causas: voluntário, involuntário (falha de pagamento) e fim de contrato (anual não renovado).</li>
+            <li><strong>Origem do tempo:</strong> data da primeira cobrança. Duração em meses.</li>
+            <li><strong>Corte de observação:</strong> {{ premissas.corte|data }}. Quem ainda está ativo nessa data é <strong>censurado à direita</strong>: sabemos que ficou pelo menos aquele tempo, não quanto ficará.</li>
+            <li><strong>Safra:</strong> trimestre de entrada, a partir de {{ premissas.entrada_ini|data }} ({{ premissas.n_safras }} safras).</li>
+          </ul>
+        </div>
+        <div class="table-wrap"><table>
+          <tr><th>Item</th><th class="num">Valor</th></tr>
+          <tr><td>Assinantes sintéticos</td><td class="num">{{ dados.n|int }}</td></tr>
+          <tr><td>Entradas</td><td class="num">{{ premissas.entrada_ini|data }} a {{ premissas.entrada_fim|data }}</td></tr>
+          <tr><td>Cancelaram (evento observado)</td><td class="num">{{ dados.n_eventos|int }} ({{ dados.pct_eventos|pct }})</td></tr>
+          <tr><td>Censurados à direita</td><td class="num">{{ dados.n_censurados|int }} ({{ dados.pct_censurados|pct }})</td></tr>
+          <tr><td>Seguimento máximo possível</td><td class="num">{{ dados.seguimento_max_meses|n(1) }} meses</td></tr>
+          <tr><td>Com 12 / 18 / 24 meses de observação possíveis</td><td class="num">{{ dados.n_com_12m_possiveis|int }} / {{ dados.n_com_18m_possiveis|int }} / {{ dados.n_com_24m_possiveis|int }}</td></tr>
+          <tr><td>Causas: voluntário / involuntário / fim de contrato</td><td class="num">{{ dados.causas.voluntario|int }} / {{ dados.causas.involuntario|int }} / {{ dados.causas.fim_contrato|int }}</td></tr>
+        </table></div>
+        <p>
+          {{ dados.pct_censurados|pct(0) }} da base está censurada. Isso muda tudo: qualquer conta que trate "ainda ativo" como "ficou para sempre" ou
+          "censurado" como "cancelou" erra. O Kaplan-Meier usa cada assinante pelo tempo em que de fato foi observado.
+        </p>
+        <div class="caveat">
+          O desenho tem uma consequência importante: com entradas até o corte, <strong>ninguém tem 24 meses completos</strong>.
+          M24 só poderia ser projetado, e por isso fica vazio nas tabelas de medição.
+        </div>
+      </section>
+
+      <!-- ============================ B ============================ -->
+      <section id="secao-b">
+        <div class="section-kicker">Seção B</div>
+        <h2>O erro clássico: retenção ingênua × Kaplan-Meier</h2>
+        <p>
+          A retenção "ingênua" por safra é <em>ativos hoje ÷ iniciados</em>. Ela parece natural, mas só mede <strong>há quanto tempo a safra
+          entrou</strong>: a safra mais antiga já teve tempo de perder gente, a mais recente mal começou.
+        </p>
+        <blockquote class="pullquote">
+          <span class="pq-num">{{ d.ingenua_pior.ret_ingenua|pct(0) }} → {{ d.ingenua_melhor.ret_ingenua|pct(0) }}</span>
+          <span class="pq-cap">retenção "ingênua" da safra {{ d.ingenua_pior.safra }} (mais antiga) à {{ d.ingenua_melhor.safra }} (mais recente), correlação {{ ingenuo_vs_km.rho_ingenua_idade|sn(2) }} com a idade da safra</span>
+        </blockquote>
+        <p>
+          O Kaplan-Meier compara as safras no <strong>mesmo horizonte</strong>. Em M3, ele conta a história oposta (correlação
+          {{ ingenuo_vs_km.rho_km_m3_idade|sn(2) }} com a idade da safra): as safras recentes retêm um pouco <strong>pior</strong>, não melhor.
+        </p>
+        <figure>
+          <img src="{{ img.ingenua_vs_km }}" alt="Retenção ingênua por safra e Kaplan-Meier nos horizontes M3, M6 e M12">
+          <figcaption>À esquerda, o ingênuo sobe só porque as safras são mais novas. À direita, o KM nos mesmos horizontes (barras = IC 95% log-log); pontos ausentes = safra sem tempo de observação.</figcaption>
+        </figure>
+
+        <h3>Metas por safra (edite as metas)</h3>
+        <p>
+          As metas são <strong>fictícias</strong> e editáveis: mude os valores abaixo e a tabela recalcula se o IC 95% de cada célula fica acima, abaixo
+          ou cruza a meta. Células sem tempo de observação ficam vazias, nunca preenchidas.
+        </p>
+        <div class="metas-row" id="metasRow">
+          <div class="m"><label for="metaB12">Meta M12 (%)</label><input id="metaB12" type="number" min="0" max="100" step="1" inputmode="numeric"></div>
+          <div class="m"><label for="metaB18">Meta M18 (%)</label><input id="metaB18" type="number" min="0" max="100" step="1" inputmode="numeric"></div>
+          <div class="m"><label for="metaB24">Meta M24 (%)</label><input id="metaB24" type="number" min="0" max="100" step="1" inputmode="numeric"></div>
+        </div>
+        <div class="table-wrap"><table id="tabSafras" aria-live="polite">
+          <thead><tr><th>Safra</th><th>Entrada</th><th class="num">n</th><th class="num">Ingênua</th><th class="num">KM M3</th><th class="num">KM M12</th><th class="num">KM M18</th><th class="num">KM M24</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+        <p style="font-size:0.88rem;color:var(--ink-muted);">
+          "—" = safra sem tempo de observação: M12 só existe para as safras com todos os membros observáveis por 12 meses
+          ({{ ingenuo_vs_km.n_celulas_m12_preenchidas }} de {{ premissas.n_safras }}), M18 para {{ ingenuo_vs_km.n_celulas_m18_preenchidas }} e M24 para
+          {{ ingenuo_vs_km.n_celulas_m24_preenchidas }}.
+        </p>
+        <div class="table-wrap"><table>
+          <tr><th>Base inteira</th><th class="num">KM</th><th class="num">IC 95%</th><th class="num">Em risco</th><th class="num">Meta</th><th>Situação</th></tr>
+          {% for h in ["m12", "m18", "m24"] %}
+          {% set p = ingenuo_vs_km.global[h] %}
+          <tr>
+            <td>{{ h|upper }}</td>
+            {% if p.ok %}
+            <td class="num">{{ p.valor|pct }}</td><td class="num">{{ p.lo|pct }} a {{ p.hi|pct }}</td><td class="num">{{ p.n_risco|int }}</td>
+            <td class="num">{{ p.meta|pct(0) }}</td>
+            <td>{{ {"acima": "acima da meta", "abaixo": "abaixo da meta", "indistinguivel": "IC cruza a meta"}[p.status] }}</td>
+            {% else %}
+            <td class="vazio" colspan="3">sem tempo de observação ({{ p.n_risco|int }} em risco)</td><td class="num">{{ p.meta|pct(0) }}</td><td>não observável</td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </table></div>
+      </section>
+
+      <!-- ============================ EXPLORADOR ============================ -->
+      <section id="explorador">
+        <div class="section-kicker">Explorador</div>
+        <h2>Explore as curvas: canal, plano, safra e horizonte</h2>
+        <p>
+          Escolha um recorte e um horizonte. A curva é o Kaplan-Meier com IC 95% (log-log); a linha tracejada cinza é a base inteira e a linha
+          vermelha é a meta, que você pode editar. Se o recorte não tem tempo de observação no horizonte, o explorador <strong>não preenche</strong>.
+        </p>
+        <div class="explorer" id="explorer">
+          <div class="ex-controls">
+            <div><label for="exCanal">Canal</label><select id="exCanal"></select></div>
+            <div><label for="exPlano">Plano</label><select id="exPlano"></select></div>
+            <div><label for="exSafra">Safra</label><select id="exSafra"></select></div>
+            <div><span class="ex-label">Horizonte</span>
+              <div class="seg" role="group" aria-label="Horizonte">
+                <button type="button" data-h="12" aria-pressed="true">M12</button>
+                <button type="button" data-h="18" aria-pressed="false">M18</button>
+                <button type="button" data-h="24" aria-pressed="false">M24</button>
+              </div>
+            </div>
+            <div><label for="exMeta" id="exMetaLabel">Meta M12 (%)</label><input id="exMeta" type="number" min="0" max="100" step="1" inputmode="numeric"></div>
+          </div>
+          <div class="ex-chart"><svg id="exSvg" viewBox="0 0 680 380" role="img" aria-label="Curva de sobrevivência do recorte escolhido"></svg></div>
+          <div class="ex-legend">
+            <span><i style="border-color:var(--meridian)"></i>Kaplan-Meier do recorte</span>
+            <span><i style="border-color:var(--ink-faint);border-top-style:dashed"></i>Base inteira</span>
+            <span><i style="border-color:var(--red);border-top-style:dotted"></i>Meta</span>
+          </div>
+          <div class="ex-readout" id="exReadout" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <!-- ============================ C ============================ -->
+      <section id="secao-c">
+        <div class="section-kicker">Seção C</div>
+        <h2>Comparações: log-rank e correção de Holm</h2>
+        <p>
+          O log-rank compara curvas inteiras. Para cada fator, um teste global e depois todos os pares, com
+          <strong>correção de Holm</strong> para não coletar falsos positivos só por testar muitos pares.
+        </p>
+        <div class="table-wrap"><table>
+          <tr><th>Fator</th><th class="num">χ² (gl)</th><th class="num">p</th><th class="num">Pares significativos (bruto → Holm)</th></tr>
+          {% for k, rot in [("canal", "Canal"), ("plano", "Plano"), ("safra", "Safra")] %}
+          {% set c = comparacoes[k] %}
+          <tr><td>{{ rot }}</td><td class="num">{{ c.logrank.chi2|n(1) }} ({{ c.logrank.df }})</td><td class="num">{{ c.logrank.p|p }}</td><td class="num">{{ c.n_sig_bruto }} → {{ c.n_sig_holm }} de {{ c.n_pares }}</td></tr>
+          {% endfor %}
+        </table></div>
+        <p>
+          Entre safras, {{ comparacoes.safra.n_sig_bruto }} dos {{ comparacoes.safra.n_pares }} pares parecem diferentes sem correção; depois de Holm restam
+          {{ comparacoes.safra.n_sig_holm }}. É o tipo de diferença que some quando se desconta o excesso de comparações.
+        </p>
+        <figure>
+          <img src="{{ img.km_canal }}" alt="Curvas de Kaplan-Meier por canal de aquisição">
+          <figcaption>Kaplan-Meier por canal. A queda comum em M12 vem do plano anual (renovação). Traço vermelho = metas fictícias.</figcaption>
+        </figure>
+        <figure>
+          <img src="{{ img.km_plano }}" alt="Curvas de Kaplan-Meier por plano">
+          <figcaption>Kaplan-Meier por plano: o anual quase não cai até o mês 12 e depois despenca na renovação.</figcaption>
+        </figure>
+        <h3>Os pares de canais (Holm)</h3>
+        <div class="table-wrap"><table>
+          <tr><th>Par</th><th class="num">χ²</th><th class="num">p bruto</th><th class="num">p (Holm)</th><th>Significativo?</th></tr>
+          {% for x in comparacoes.canal.pares %}
+          <tr><td>{{ x.rotulo_a }} × {{ x.rotulo_b }}</td><td class="num">{{ x.chi2|n(1) }}</td><td class="num">{{ x.p|p }}</td><td class="num">{{ x.p_holm|p }}</td>
+              <td>{% if x.significativo_holm %}<span class="pill good">sim</span>{% else %}<span class="pill warn">não</span>{% endif %}</td></tr>
+          {% endfor %}
+        </table></div>
+        <h3>Kaplan-Meier × verdade plantada</h3>
+        <p>Como os dados são sintéticos, conhecemos a sobrevivência verdadeira. O IC 95% do KM cobre a verdade em
+          {{ d.km_cobre_n }} de {{ km_vs_verdade|length }} comparações (canais e planos, M12 e M18).</p>
+        <div class="table-wrap"><table>
+          <tr><th>Grupo</th><th>Horizonte</th><th class="num">KM</th><th class="num">IC 95%</th><th class="num">Verdade</th><th>Cobre?</th></tr>
+          {% for r in km_vs_verdade %}
+          <tr><td>{{ r.rotulo }}</td><td>M{{ r.h }}</td><td class="num">{{ r.km|pct }}</td><td class="num">{{ r.lo|pct }} a {{ r.hi|pct }}</td><td class="num">{{ r.verdade|pct }}</td>
+              <td>{% if r.cobre %}<span class="pill good">sim</span>{% else %}<span class="pill bad">não</span>{% endif %}</td></tr>
+          {% endfor %}
+        </table></div>
+      </section>
+
+      <!-- ============================ D ============================ -->
+      <section id="secao-d">
+        <div class="section-kicker">Seção D</div>
+        <h2>Cox: mostrar a violação, corrigir e comparar com o plantado</h2>
+        <p>
+          O modelo de Cox estima razões de risco (HR) por covariável, assumindo que cada HR é <strong>constante no tempo</strong>. Essa premissa é testável
+          com os resíduos de Schoenfeld. Aqui ela é violada de propósito: o plano anual tem um pico na renovação e a promoção tem um penhasco no mês seguinte ao seu fim.
+        </p>
+        <h3>1. O modelo ingênuo viola a premissa</h3>
+        <div class="table-wrap"><table>
+          <tr><th>Covariável</th><th class="num">HR</th><th class="num">IC 95%</th><th class="num">p (tendência)</th><th class="num">p (por faixas de idade)</th><th>Violação?</th></tr>
+          {% for r in cox.ingenuo.coefs %}
+          {% set t = d.ph_i[r.nome] %}
+          <tr><td>{{ r.rotulo }}</td><td class="num">{{ r.hr|hr }}</td><td class="num">{{ r.lo|hr }}–{{ r.hi|hr }}</td><td class="num">{{ t.p_rank|p }}</td><td class="num">{{ t.p_faixas|p }}</td>
+              <td>{% if t.viola %}<span class="pill bad">viola</span>{% else %}<span class="pill good">ok</span>{% endif %}</td></tr>
+          {% endfor %}
+        </table></div>
+        <p>
+          O teste global de Schoenfeld rejeita a premissa (p {{ cox.ingenuo.ph_global.p|p }}); {{ cox.ingenuo.n_viola }} de {{ cox.ingenuo.n_covs }} covariáveis violam
+          (limiar de Bonferroni). C-index do modelo ingênuo: {{ cox.ingenuo.cindex|n(3) }}.
+        </p>
+        <div class="caveat">
+          O teste "padrão" (tendência em rank do tempo) <strong>não pega o penhasco</strong> da promoção (p {{ d.ph_i.oferta_bf.p_rank|p }}): o efeito sobe e depois desce, sem tendência
+          linear. O teste <strong>por faixas de idade</strong> pega (p {{ d.ph_i.oferta_bf.p_faixas|p }}). Vale olhar o gráfico, não só o p-valor.
+        </div>
+        <figure>
+          <img src="{{ img.schoenfeld }}" alt="Efeito local por faixa de idade para a promoção e para o plano anual">
+          <figcaption>HR local por faixa de idade (média dos resíduos de Schoenfeld escalados). A linha vermelha é o HR único que o Cox ingênuo atribui.</figcaption>
+        </figure>
+        <figure>
+          <img src="{{ img.penhasco }}" alt="Risco mensal de cancelar por mês de vida, com e sem promoção">
+          <figcaption>O penhasco, direto nos dados: o risco observado de quem entrou na Black Friday dispara no mês 3–4.</figcaption>
+        </figure>
+
+        <h3>2. A correção</h3>
+        <ul>
+          <li><strong>Estratificar por plano</strong>: cada plano ganha seu próprio risco de base, o que absorve o pico do anual na renovação.</li>
+          <li><strong>Promoção por períodos</strong>: três coeficientes (vigente, penhasco, pós-penhasco) em vez de um HR único.</li>
+          <li><strong>Reajuste de preço como efeito de calendário</strong> para Mensal e Combo (jul–ago/26).</li>
+        </ul>
+        <p>
+          Teste global de Schoenfeld no modelo corrigido: p {{ cox.corrigido.ph_global.p|p }} ({{ cox.corrigido.n_viola }} covariáveis violando). C-index {{ cox.corrigido.cindex_td|n(3) }}
+          (compara só assinantes do mesmo plano, então não é diretamente comparável ao do ingênuo).
+        </p>
+
+        <h3>3. HR plantado × estimado</h3>
+        <div class="table-wrap"><table>
+          <tr><th>Efeito</th><th class="num">Plantado</th><th class="num">Cox ingênuo</th><th class="num">Cox corrigido</th><th>IC corrigido cobre?</th></tr>
+          {% for r in cox.plantado_vs_estimado %}
+          {% set c = r.corrigido or r.complementar %}
+          <tr>
+            <td>{{ r.rotulo }}</td>
+            <td class="num">{% if r.verdade is not none %}{{ r.verdade|hr }}{% else %}<span class="vazio">—</span>{% endif %}</td>
+            <td class="num">{% if r.ingenuo %}{{ r.ingenuo.hr|hr }} <span style="color:var(--ink-faint)">({{ r.ingenuo.lo|hr }}–{{ r.ingenuo.hi|hr }})</span>{% else %}—{% endif %}</td>
+            <td class="num">{% if c %}{{ c.hr|hr }} <span style="color:var(--ink-faint)">({{ c.lo|hr }}–{{ c.hi|hr }})</span>{% if not r.corrigido %}¹{% endif %}{% else %}—{% endif %}</td>
+            <td>{% if c and r.verdade is not none %}{% if c.cobre %}<span class="pill good">sim</span>{% else %}<span class="pill bad">não</span>{% endif %}{% else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </table></div>
+        <p style="font-size:0.88rem;color:var(--ink-muted);">
+          ¹ HR de plano estimado num modelo complementar sem o plano anual (que é estratificado no modelo corrigido). O IC 95% do modelo corrigido cobre o valor plantado em
+          {{ cox.cobertura.corrigido|pct(0) }} dos {{ cox.cobertura.n_corrigido }} efeitos com razão única; o do modelo ingênuo, em {{ cox.cobertura.ingenuo|pct(0) }} dos {{ cox.cobertura.n_ingenuo }}.
+        </p>
+        <figure>
+          <img src="{{ img.forest }}" alt="Gráfico de floresta: HR plantado, ingênuo e corrigido">
+          <figcaption>Efeito plantado (losango vermelho) × estimado. O ingênuo erra onde a premissa é violada (anual, promoção, Passe Copa); o corrigido recupera os efeitos.</figcaption>
+        </figure>
+        <p>
+          Note um efeito colateral: com a premissa violada, o ingênuo também distorce covariáveis que <em>não</em> violam. O HR de Estudante sai {{ d.coef_ing.plano_estudante.hr|hr }} no ingênuo,
+          contra {{ d.coef_ing.plano_estudante.verdade|hr }} plantado.
+        </p>
+      </section>
+
+      <!-- ============================ E ============================ -->
+      <section id="secao-e">
+        <div class="section-kicker">Seção E</div>
+        <h2>Valor por canal: permanência, LTV, CAC e a decisão</h2>
+        <p>
+          Duas medidas de permanência por canal: o <strong>RMST</strong> (tempo médio restrito: meses esperados de assinatura nos primeiros {{ premissas.horizonte_ltv }}) e o
+          <strong>LTV descontado</strong> em {{ premissas.horizonte_ltv }} meses (ARPU × sobrevivência × desconto de {{ premissas.taxa_desconto_anual|pct(0) }} ao ano), contra o <strong>CAC</strong> por canal e o payback.
+          Intervalos de 95% por bootstrap de assinantes ({{ valor.n_boot|int }} réplicas).
+          <span class="tag-med">medido</span> = parte coberta pelo Kaplan-Meier; <span class="tag-proj">projetado</span> = tudo que depende de premissa ou de extrapolação.
+        </p>
+        <div class="table-wrap"><table>
+          <tr><th>Canal</th><th class="num">CAC</th><th class="num">RMST {{ premissas.horizonte_ltv }}m</th><th class="num">LTV {{ premissas.horizonte_ltv }}m</th><th class="num">% medido</th><th class="num">LTV/CAC</th><th class="num">Payback</th></tr>
+          {% for c in valor.canais %}
+          <tr>
+            <td>{{ c.rotulo }}{% if not c.escalavel %} <span class="pill warn">próprio</span>{% endif %}</td>
+            <td class="num">{{ c.cac|brl }}</td>
+            <td class="num">{{ c.rmst.est|n(1) }} <span style="color:var(--ink-faint)">({{ c.rmst.lo|n(1) }}–{{ c.rmst.hi|n(1) }})</span></td>
+            <td class="num">{{ c.ltv.est|brl }} <span style="color:var(--ink-faint)">({{ c.ltv.lo|brl }}–{{ c.ltv.hi|brl }})</span></td>
+            <td class="num">{{ c.pct_ltv_medido|pct(0) }}</td>
+            <td class="num"><strong>{{ c.ltv_cac.est|n(1) }}×</strong> <span style="color:var(--ink-faint)">({{ c.ltv_cac.lo|n(1) }}–{{ c.ltv_cac.hi|n(1) }})</span></td>
+            <td class="num">{{ c.payback.est|n(0) }} mens.</td>
+          </tr>
+          {% endfor %}
+        </table></div>
+        <figure>
+          <img src="{{ img.valor }}" alt="RMST e LTV descontado por canal contra o CAC">
+          <figcaption>Permanência (RMST) e LTV descontado por canal, com o CAC em traço. O número em cima das barras é o LTV/CAC.</figcaption>
+        </figure>
+        <figure>
+          <img src="{{ img.payback }}" alt="Receita acumulada esperada por canal contra o CAC">
+          <figcaption>Payback: a receita descontada esperada por assinante adquirido cruza o CAC (pontilhado) entre {{ d.payback_min|n(0) }} e {{ d.payback_max|n(0) }} mensalidades.</figcaption>
+        </figure>
+
+        <div class="decisao">
+          <h4>Decisão 1 — onde colocar a verba <span class="tag-proj">projetado</span></h4>
+          <p>
+            {% if d.inverte %}O ranking <strong>só por CAC</strong> favorece {{ d.rank_cac[0].rotulo }} (o canal pago mais barato, {{ d.rank_cac[0].cac|brl }}).
+            Quando se conta a permanência, o ranking por LTV/CAC muda: {% for c in d.rank_ltv_cac %}{{ c.rotulo }} ({{ c.ltv_cac.est|n(1) }}×){{ " > " if not loop.last else "." }}{% endfor %}
+            {% else %}O ranking por CAC e o ranking por LTV/CAC coincidem: {% for c in d.rank_ltv_cac %}{{ c.rotulo }} ({{ c.ltv_cac.est|n(1) }}×){{ " > " if not loop.last else "." }}{% endfor %}{% endif %}
+          </p>
+          <p>
+            <strong>Ação:</strong> priorizar {{ d.canal_melhor.rotulo }} e reduzir {{ d.canal_pior.rotulo }}. Para cada R$ {{ premissas.verba_exemplo|int }} movidos de {{ d.canal_pior.rotulo }}
+            para {{ d.canal_melhor.rotulo }}, o valor líquido (LTV − CAC) sobe cerca de <strong>{{ decisao_verba.ganho_realocar_pior_para_melhor|brl_mi }}</strong>; vindo de
+            {{ d.canal_midia.rotulo }}, cerca de {{ decisao_verba.ganho_realocar_midia_paga_para_melhor|brl_mi }}. {{ d.canal_melhor.rotulo }} tem
+            {{ d.canal_melhor.prob_melhor_ltv_cac|pct(0) }} de chance de ser o melhor em LTV/CAC entre os canais com verba, nas réplicas do bootstrap.
+          </p>
+          <p style="font-size:0.9rem;color:var(--ink-muted);margin-bottom:0;">
+            Premissas: CAC médio = marginal (não vale quando o canal satura, e indicação satura primeiro); LTV sobre receita, sem margem; canais próprios (orgânico e e-mail/CRM) fora da realocação.
+          </p>
+        </div>
+        <div class="table-wrap"><table>
+          <tr><th>Canal com verba</th><th class="num">CAC</th><th class="num">Assinantes por R$ {{ premissas.verba_exemplo|int }}</th><th class="num">LTV total</th><th class="num">Valor líquido</th><th class="num">Retorno por real</th></tr>
+          {% for l in decisao_verba.linhas if l.escalavel %}
+          <tr><td>{{ l.rotulo }}</td><td class="num">{{ l.cac|brl }}</td><td class="num">{{ l.assinantes_por_verba|int }}</td><td class="num">{{ l.ltv_total|brl_mi }}</td><td class="num">{{ l.valor_liquido|brl_mi }}</td><td class="num">{{ l.retorno_por_real|n(1) }}×</td></tr>
+          {% endfor %}
+        </table></div>
+
+        <div class="decisao">
+          <h4>Decisão 2 — o que fazer no mês 3 da promoção</h4>
+          <p>
+            <span class="tag-med">medido</span> No mês seguinte ao fim da promoção, {{ acao_mes3.medido.q_penhasco|pct }} de quem chegou ao mês 3 cancela, e o Cox corrigido estima HR {{ d.pen.hr|hr }}
+            (IC 95% {{ d.pen.hr_lo|hr }}–{{ d.pen.hr_hi|hr }}): isso são <strong>{{ d.pen.excesso|ppa(1) }}</strong> de cancelamentos a mais do que sem o penhasco (IC {{ d.pen.excesso_lo|ppa(1) }} a {{ d.pen.excesso_hi|ppa(1) }}).
+          </p>
+          <p>
+            <span class="tag-proj">projetado</span> Numa coorte de referência de {{ d.proj.n_coorte|int }} assinantes da Black Friday, {{ d.proj.vivos_mes3|n(0) }} chegam ao mês 3 e cerca de
+            {{ d.proj.cancelamentos_em_excesso_penhasco|n(0) }} cancelam a mais por causa do penhasco. Cada um retido vale {{ d.proj.valor_assinante_retido|brl }} (receita descontada a preço cheio), ou
+            {{ d.proj.valor_perdido_penhasco|brl_mi }} no total.
+          </p>
+          <p>
+            <strong>Ação:</strong> contatar todo assinante da promoção no início do mês 3 (oferta de continuidade no app e e-mail, custo assumido de {{ d.proj.custo_por_assinante|brl }} por assinante, {{ d.proj.custo_acao|brl }} no total).
+            Se ela evitar {{ d.proj.efetividade_base|pct(0) }} do excesso, o líquido é de <strong>{{ d.proj.base.liquido|brl }}</strong> por coorte. O ponto de equilíbrio é uma efetividade de
+            {{ d.proj.efetividade_equilibrio|pct(0) }}.
+          </p>
+          <div class="table-wrap" style="margin-bottom:0"><table>
+            <tr><th>Efetividade assumida</th><th class="num">Benefício</th><th class="num">Custo</th><th class="num">Líquido</th></tr>
+            {% for c in d.proj.cenarios %}
+            <tr><td>{{ c.efetividade|pct(0) }} do excesso evitado</td><td class="num">{{ c.beneficio|brl }}</td><td class="num">{{ c.custo|brl }}</td>
+                <td class="num"><strong>{{ c.liquido|brl }}</strong></td></tr>
+            {% endfor %}
+          </table></div>
+        </div>
+        <figure>
+          <img src="{{ img.decisao }}" alt="Canais com verba: só CAC contra permanência, e líquido da ação no mês 3">
+          <figcaption>À esquerda, o canal mais barato por assinante não é o de maior retorno por real. À direita, o líquido da ação do mês 3 conforme a efetividade assumida (projeção).</figcaption>
+        </figure>
+      </section>
+
+      <!-- ============================ F ============================ -->
+      <section id="secao-f">
+        <div class="section-kicker">Seção F</div>
+        <h2>O que poderia ter dado errado</h2>
+        <p>Três armadilhas clássicas, quantificadas contra a verdade plantada. Clique para ver cada uma.</p>
+        <div class="accordion">
+          <details class="acc-item" open>
+            <summary><span>(a) Censura ignorada</span><span class="result-tag">erro de até {{ d.censura_erro_max|ppa(0) }}</span><span class="chev">+</span></summary>
+            <div class="acc-body">
+              <p>Retenção em M12 de toda a base. A verdade plantada é {{ armadilhas.censura.verdade|pct }}.</p>
+              <div class="table-wrap"><table>
+                <tr><th>Como foi calculado</th><th class="num">M12</th><th class="num">Erro</th></tr>
+                {% for m in armadilhas.censura.metodos %}
+                <tr><td>{{ m.rotulo }}</td><td class="num">{{ m.valor|pct }}{% if m.lo is defined %} <span style="color:var(--ink-faint)">({{ m.lo|pct }}–{{ m.hi|pct }})</span>{% endif %}</td><td class="num">{{ m.erro_pp|pp }}</td></tr>
+                {% endfor %}
+              </table></div>
+              <p>"Ativos ÷ iniciados" fica perto do valor correto na base inteira só por coincidência: por safra ele varia de {{ d.ingenua_pior.ret_ingenua|pct(0) }} a {{ d.ingenua_melhor.ret_ingenua|pct(0) }} (Seção B).
+                Tratar o censurado como cancelado ou descartá-lo subestima a retenção, porque joga fora justamente quem está permanecendo.</p>
+            </div>
+          </details>
+          <details class="acc-item">
+            <summary><span>(b) Riscos proporcionais violados</span><span class="result-tag">o penhasco some no HR único</span><span class="chev">+</span></summary>
+            <div class="acc-body">
+              <p>O Cox ingênuo atribui à promoção um HR único de {{ armadilhas.riscos_proporcionais.hr_unico_ingenuo|hr }}. Para um assinante da Black Friday que chegou ao mês 3, ele
+                prevê {{ armadilhas.riscos_proporcionais.q_previsto_ingenuo|pct }} de chance de cancelar no mês 3–4 (base sem promoção: {{ armadilhas.riscos_proporcionais.q_base_mes3|pct }}); o observado é
+                <strong>{{ armadilhas.riscos_proporcionais.q_observado_bf_mes3|pct }}</strong>, que o modelo corrigido reproduz ({{ armadilhas.riscos_proporcionais.q_previsto_corrigido|pct }}). O HR único
+                subestima o penhasco em {{ armadilhas.riscos_proporcionais.subestimacao_ingenua|pct(0) }}.</p>
+              <p>Quem olhasse só o HR do ingênuo concluiria que a promoção "pouco piora" a retenção, e perderia exatamente o mês em que há o que fazer.</p>
+            </div>
+          </details>
+          <details class="acc-item">
+            <summary><span>(c) Ranking por M12 bruto com safra pequena</span><span class="result-tag">acerta só {{ armadilhas.ranking.p_acerta_melhor|pct(0) }} das vezes</span><span class="chev">+</span></summary>
+            <div class="acc-body">
+              <p>Com {{ armadilhas.ranking.tamanho_safra_pequena|int }} assinantes (uma safra pequena), o canal com maior M12 bruto é o <em>verdadeiro</em> melhor ({{ d.rot.canal[armadilhas.ranking.melhor_verdadeiro] }})
+                em apenas {{ armadilhas.ranking.p_acerta_melhor|pct(0) }} dos {{ armadilhas.ranking.n_sorteios|int }} sorteios, e o menor é o verdadeiro pior ({{ d.rot.canal[armadilhas.ranking.pior_verdadeiro] }}) em
+                {{ armadilhas.ranking.p_acerta_pior|pct(0) }}. O menor canal da amostra tem, em mediana, {{ armadilhas.ranking.n_mediano_menor_canal|n(0) }} assinantes e o IC médio tem {{ armadilhas.ranking.largura_media_ic|ppa(0) }} de largura.</p>
+              <p>Mesmo nas safras reais completas, o "melhor" e o "pior" canal mudam de uma safra para outra: {% for s in armadilhas.ranking.safras_reais %}{{ s.safra }} ({{ d.rot.canal[s.melhor] }} / {{ d.rot.canal[s.pior] }}){{ "; " if not loop.last else "." }}{% endfor %}
+                Ranking de canal se decide com IC e com a base inteira, não com a safra pequena.</p>
+            </div>
+          </details>
+        </div>
+        <figure>
+          <img src="{{ img.armadilhas }}" alt="Três armadilhas: censura ignorada, riscos proporcionais violados e ranking por M12 bruto">
+          <figcaption>(a) M12 calculado de quatro jeitos; (b) cancelamento no mês 3–4 previsto × observado; (c) frequência com que o ranking bruto de uma safra pequena acerta.</figcaption>
+        </figure>
+      </section>
+
+      <!-- ============================ G ============================ -->
+      <section id="secao-g">
+        <div class="section-kicker">Seção G</div>
+        <h2>Riscos competitivos: quem sai, e por quê</h2>
+        <p>
+          Quem cancela por uma causa deixa de estar sob risco das outras. A <strong>incidência acumulada</strong> (estimador de Aalen-Johansen) respeita isso e as três causas somam
+          o cancelamento total; "1 − KM tratando as outras causas como censura" <strong>superestima</strong>.
+        </p>
+        <div class="table-wrap"><table>
+          <tr><th>Causa</th><th class="num">M6</th><th class="num">M12</th><th class="num">M18</th><th class="num">M18: 1 − KM (erro clássico)</th></tr>
+          {% for k, rot in d.rot.causa.items() %}
+          {% set a = riscos_competitivos.pontos %}
+          <tr><td>{{ rot }}</td><td class="num">{{ a.m6[k].est|pct }}</td><td class="num">{{ a.m12[k].est|pct }}</td>
+              <td class="num">{{ a.m18[k].est|pct }} <span style="color:var(--ink-faint)">({{ a.m18[k].lo|pct }}–{{ a.m18[k].hi|pct }})</span></td><td class="num">{{ a.m18[k].um_menos_km|pct }}</td></tr>
+          {% endfor %}
+        </table></div>
+        <figure>
+          <img src="{{ img.riscos_competitivos }}" alt="Incidência acumulada por causa de cancelamento e por plano">
+          <figcaption>Incidência acumulada por causa (esquerda) e por plano até o mês 13 (direita): o fim de contrato é exclusivo do anual e começa no mês 12.</figcaption>
+        </figure>
+      </section>
+
+      <!-- ============================ H ============================ -->
+      <section id="secao-h">
+        <div class="section-kicker">Seção H</div>
+        <h2>Limites honestos</h2>
+        <ul>
+          <li><strong>Dados sintéticos e efeitos plantados.</strong> O projeto mostra que o método recupera o efeito certo (tabela da Seção D), não que mídia paga seja pior ou que a Black Friday tenha um penhasco no mundo real.</li>
+          <li><strong>M24 não é observável</strong> nesta janela; qualquer número de M24 seria projeção.</li>
+          <li><strong>ARPU, CAC, taxa de desconto, custo e efetividade da ação do mês 3 são premissas minhas</strong> (em <code>config.py</code> e <code>DECISIONS.md</code>). Não há margem de contribuição e o reajuste de preço não entra no ARPU.</li>
+          <li><strong>CAC médio não é CAC marginal:</strong> a realocação supõe escala linear; canais como indicação saturam.</li>
+          <li>O Kaplan-Meier agregado assume censura não informativa e mistura safras com riscos diferentes (reajuste, Copa): pequenas diferenças em relação à verdade são esperadas.</li>
+          <li>O efeito do reajuste é <strong>associação</strong>, não causalidade medida por experimento.</li>
+          <li><strong>Não foi feito:</strong> modelos de fragilidade ou de cura, reativações, upgrade de plano, validação fora da amostra.</li>
+        </ul>
+      </section>
+
+    </article>
+  </div>
+
+  <footer class="colophon">
+    <p>Projeto de portfólio de Análise de Dados — sobrevivência aplicada à retenção. Dados 100% sintéticos (empresa fictícia "Gazeta Meridiano"). Seed {{ premissas.seed }},
+      pipeline reprodutível com pytest ({{ meta.n_testes|int }} testes) e notebooks executados.</p>
+    <p>Feito com apoio de IA, sob a direção de Gabriel Rangel. Página estática de arquivo único: sem login, sem chaves e sem serviços externos.</p>
+  </footer>
+
+</div>
+
+<script id="dados" type="application/json">{{ dados_json }}</script>
+{% raw %}
+<script>
+(function () {
+  "use strict";
+  var D = JSON.parse(document.getElementById('dados').textContent);
+  var EX = D.explorador;
+  var root = document.documentElement;
+
+  /* ---------- helpers ---------- */
+  function pct(x, d) { return (x * 100).toFixed(d === undefined ? 1 : d).replace('.', ',') + '%'; }
+  function fmtInt(x) { return Math.round(x).toLocaleString('pt-BR'); }
+
+  /* ---------- tema noturno ---------- */
+  var chkNight = document.getElementById('chkNight');
+  var btnNight = document.getElementById('btnNight');
+  function getStored() { try { return localStorage.getItem('gm-theme'); } catch (e) { return null; } }
+  function setStored(v) { try { localStorage.setItem('gm-theme', v); } catch (e) { /* ignore */ } }
+  function isDarkNow() {
+    var t = root.getAttribute('data-theme');
+    return t === 'dark' || (!t && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  }
+  function applyTheme(theme) {
+    if (theme === 'dark' || theme === 'light') root.setAttribute('data-theme', theme); else root.removeAttribute('data-theme');
+    var dark = isDarkNow();
+    if (chkNight) chkNight.checked = dark;
+    if (btnNight) btnNight.setAttribute('aria-pressed', String(dark));
+  }
+  applyTheme(getStored() || 'auto');
+  function toggleNight() { var next = isDarkNow() ? 'light' : 'dark'; applyTheme(next); setStored(next); }
+  if (chkNight) chkNight.addEventListener('change', toggleNight);
+  if (btnNight) btnNight.addEventListener('click', toggleNight);
+
+  /* ---------- copiar link / imprimir ---------- */
+  var btnCopy = document.getElementById('btnCopy'), toastCopy = document.getElementById('toastCopy');
+  function toast() { if (!toastCopy) return; toastCopy.classList.add('show'); setTimeout(function () { toastCopy.classList.remove('show'); }, 1600); }
+  if (btnCopy) btnCopy.addEventListener('click', function () {
+    var url = window.location.href;
+    if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(url).then(toast, toast); }
+    else { try { var ta = document.createElement('textarea'); ta.value = url; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); } catch (e) { /* ignore */ } toast(); }
+  });
+  var btnPrint = document.getElementById('btnPrint');
+  if (btnPrint) btnPrint.addEventListener('click', function () { window.print(); });
+
+  /* ---------- progresso de leitura e scrollspy ---------- */
+  var progressEl = document.getElementById('progress');
+  function updateProgress() {
+    var doc = document.documentElement, st = doc.scrollTop || document.body.scrollTop, h = doc.scrollHeight - doc.clientHeight;
+    progressEl.style.width = (h > 0 ? Math.min(100, st / h * 100) : 0) + '%';
+  }
+  var tocLinks = Array.prototype.slice.call(document.querySelectorAll('#toc a'));
+  var secs = tocLinks.map(function (a) { return document.querySelector(a.getAttribute('href')); }).filter(Boolean);
+  function updateSpy() {
+    var pos = window.scrollY + 140, idx = -1;
+    for (var i = 0; i < secs.length; i++) if (secs[i].offsetTop <= pos) idx = i;
+    tocLinks.forEach(function (a, i) { a.classList.toggle('active', i === idx); });
+  }
+  document.addEventListener('scroll', function () { updateProgress(); updateSpy(); }, { passive: true });
+  window.addEventListener('resize', updateProgress);
+  updateProgress(); updateSpy();
+
+  /* ---------- count-up dos números do topo ---------- */
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function fmtCount(v, dec, suf) { return v.toFixed(dec).replace('.', ',') + suf; }
+  Array.prototype.forEach.call(document.querySelectorAll('[data-countup]'), function (el) {
+    var target = parseFloat(el.getAttribute('data-countup')), dec = parseInt(el.getAttribute('data-decimals') || '0', 10), suf = el.getAttribute('data-suffix') || '';
+    if (reduce || !window.requestAnimationFrame) { el.textContent = fmtCount(target, dec, suf); return; }
+    var t0 = null;
+    function step(ts) {
+      if (t0 === null) t0 = ts;
+      var t = Math.min(1, (ts - t0) / 900), e = 1 - Math.pow(1 - t, 3);
+      el.textContent = fmtCount(target * e, dec, suf);
+      if (t < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  });
+
+  /* ---------- metas editáveis (compartilhadas entre a tabela de safras e o explorador) ---------- */
+  var metas = { 12: EX.metas['12'], 18: EX.metas['18'], 24: EX.metas['24'] };
+  var metaInputs = { 12: document.getElementById('metaB12'), 18: document.getElementById('metaB18'), 24: document.getElementById('metaB24') };
+  var exMeta = document.getElementById('exMeta');
+  var horizonte = 12;
+
+  function setMeta(h, v) {
+    if (isNaN(v)) return;
+    metas[h] = Math.min(1, Math.max(0, v / 100));
+    [12, 18, 24].forEach(function (k) { if (document.activeElement !== metaInputs[k]) metaInputs[k].value = Math.round(metas[k] * 1000) / 10; });
+    if (document.activeElement !== exMeta) exMeta.value = Math.round(metas[horizonte] * 1000) / 10;
+    renderSafras(); renderExplorer();
+  }
+  [12, 18, 24].forEach(function (h) { metaInputs[h].addEventListener('input', function () { setMeta(h, parseFloat(metaInputs[h].value)); }); });
+  exMeta.addEventListener('input', function () { setMeta(horizonte, parseFloat(exMeta.value)); });
+
+  function situacao(p, meta) {
+    if (!p.ok) return null;
+    if (p.hi < meta) return ['abaixo', 'bad'];
+    if (p.lo > meta) return ['acima', 'good'];
+    return ['≈ meta', 'warn'];
+  }
+
+  /* ---------- tabela de safras ---------- */
+  function renderSafras() {
+    var tb = document.querySelector('#tabSafras tbody'); if (!tb) return;
+    var html = '';
+    D.safras.forEach(function (l) {
+      html += '<tr><td>' + l.safra + '</td><td>' + l.rotulo + '</td><td class="num">' + fmtInt(l.n) + '</td><td class="num">' + pct(l.ret_ingenua, 0) + '</td>';
+      ['m3', 'm12', 'm18', 'm24'].forEach(function (k) {
+        var p = l.horizontes[k];
+        if (!p.ok) { html += '<td class="vazio" title="' + (p.motivo || '').replace(/"/g, '') + '">—</td>'; return; }
+        var meta = k === 'm12' ? metas[12] : k === 'm18' ? metas[18] : k === 'm24' ? metas[24] : null;
+        var s = meta === null ? null : situacao(p, meta);
+        html += '<td class="num">' + pct(p.valor, 1) + (s ? ' <span class="pill ' + s[1] + '">' + s[0] + '</span>' : '') + '</td>';
+      });
+      html += '</tr>';
+    });
+    tb.innerHTML = html;
+  }
+
+  /* ---------- explorador ---------- */
+  var selCanal = document.getElementById('exCanal'), selPlano = document.getElementById('exPlano'), selSafra = document.getElementById('exSafra');
+  function fill(sel, items) { sel.innerHTML = items.map(function (i) { return '<option value="' + i.chave + '">' + i.rotulo + '</option>'; }).join(''); }
+  fill(selCanal, EX.canais); fill(selPlano, EX.planos); fill(selSafra, EX.safras);
+  var segBtns = Array.prototype.slice.call(document.querySelectorAll('.seg button'));
+  segBtns.forEach(function (b) {
+    b.addEventListener('click', function () {
+      horizonte = parseInt(b.getAttribute('data-h'), 10);
+      segBtns.forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      document.getElementById('exMetaLabel').textContent = 'Meta M' + horizonte + ' (%)';
+      exMeta.value = Math.round(metas[horizonte] * 1000) / 10;
+      renderExplorer();
+    });
+  });
+  [selCanal, selPlano, selSafra].forEach(function (s) { s.addEventListener('change', renderExplorer); });
+
+  var W = 680, H = 380, M = { l: 52, r: 16, t: 14, b: 40 };
+  function X(t) { return M.l + (W - M.l - M.r) * t / 24; }
+  function Y(s) { return M.t + (H - M.t - M.b) * (1 - s); }
+
+  function caminho(c, key, last) {
+    var pts = [];
+    for (var t = 0; t <= last; t++) pts.push((t === 0 ? 'M' : 'L') + X(t).toFixed(1) + ' ' + Y(c[key][t]).toFixed(1));
+    return pts.join(' ');
+  }
+  function ultimoVisivel(c) {
+    var last = 0;
+    for (var t = 0; t < c.nr.length; t++) { if (c.nr[t] >= EX.min_em_risco) last = t; }
+    return last;
+  }
+
+  function renderExplorer() {
+    var svg = document.getElementById('exSvg'), out = document.getElementById('exReadout');
+    var chave = selCanal.value + '|' + selPlano.value + '|' + selSafra.value;
+    var c = EX.curvas[chave], base = EX.curvas['todos|todos|todas'];
+    var g = '';
+    for (var i = 0; i <= 10; i++) { var s = i / 10; g += '<line class="gridl" x1="' + M.l + '" x2="' + (W - M.r) + '" y1="' + Y(s).toFixed(1) + '" y2="' + Y(s).toFixed(1) + '"/><text x="' + (M.l - 8) + '" y="' + (Y(s) + 4).toFixed(1) + '" text-anchor="end">' + (i * 10) + '%</text>'; }
+    for (var t = 0; t <= 24; t += 3) { g += '<line class="gridl" y1="' + M.t + '" y2="' + (H - M.b) + '" x1="' + X(t).toFixed(1) + '" x2="' + X(t).toFixed(1) + '"/><text x="' + X(t).toFixed(1) + '" y="' + (H - M.b + 16) + '" text-anchor="middle">' + t + '</text>'; }
+    g += '<text x="' + ((M.l + W - M.r) / 2) + '" y="' + (H - 6) + '" text-anchor="middle">Meses desde o início da assinatura</text>';
+    g += '<line class="axis" x1="' + M.l + '" x2="' + (W - M.r) + '" y1="' + (H - M.b) + '" y2="' + (H - M.b) + '"/>';
+    // meta e horizonte
+    g += '<line class="hline" x1="' + X(horizonte).toFixed(1) + '" x2="' + X(horizonte).toFixed(1) + '" y1="' + M.t + '" y2="' + (H - M.b) + '"/>';
+    g += '<line class="meta" x1="' + M.l + '" x2="' + (W - M.r) + '" y1="' + Y(metas[horizonte]).toFixed(1) + '" y2="' + Y(metas[horizonte]).toFixed(1) + '"/>';
+    g += '<text x="' + (W - M.r - 4) + '" y="' + (Y(metas[horizonte]) - 5).toFixed(1) + '" text-anchor="end" style="fill:var(--red)">meta M' + horizonte + ': ' + pct(metas[horizonte], 0) + '</text>';
+    if (base) g += '<path class="base" d="' + caminho(base, 'S', ultimoVisivel(base)) + '"/>';
+    var r = '';
+    if (!c) {
+      r = '<span class="vazio">Não há assinantes neste recorte.</span>';
+    } else {
+      var last = ultimoVisivel(c);
+      var up = caminho(c, 'hi', last), dn = [];
+      for (var k = last; k >= 0; k--) dn.push('L' + X(k).toFixed(1) + ' ' + Y(c.lo[k]).toFixed(1));
+      g += '<path class="ci" d="' + up + ' ' + dn.join(' ') + ' Z"/>';
+      g += '<path class="km" d="' + caminho(c, 'S', last) + '"/>';
+      var hz = c.h[String(horizonte)];
+      if (hz.ok) {
+        g += '<circle class="ponto" cx="' + X(horizonte).toFixed(1) + '" cy="' + Y(hz.v).toFixed(1) + '" r="5"/>';
+        var s = situacao({ ok: true, lo: hz.lo, hi: hz.hi }, metas[horizonte]);
+        r = '<span class="big">' + pct(hz.v, 1) + '</span> de retenção em M' + horizonte + ' <span style="color:var(--ink-muted)">(IC 95% ' + pct(hz.lo, 1) + ' a ' + pct(hz.hi, 1) + ')</span> · ' +
+            fmtInt(hz.nr) + ' em risco · <span class="pill ' + s[1] + '">' + (s[0] === '≈ meta' ? 'IC cruza a meta' : s[0] + ' da meta') + '</span>';
+      } else {
+        r = '<span class="vazio">M' + horizonte + ' sem tempo de observação neste recorte</span> <span style="color:var(--ink-muted)">(' + fmtInt(hz.nr) + ' assinantes em risco' + (hz.motivo ? '; ' + hz.motivo : '') + '). Em vez de preencher com um número inventado, o explorador deixa vazio.</span>';
+      }
+      r += '<div style="font-size:0.88rem;color:var(--ink-muted);margin-top:4px">' + fmtInt(c.n) + ' assinantes no recorte, ' + fmtInt(c.ev) + ' cancelamentos observados.</div>';
+    }
+    svg.innerHTML = g;
+    out.innerHTML = r;
+  }
+
+  exMeta.value = Math.round(metas[12] * 1000) / 10;
+  [12, 18, 24].forEach(function (h) { metaInputs[h].value = Math.round(metas[h] * 1000) / 10; });
+  renderSafras(); renderExplorer();
+})();
+</script>
+{% endraw %}
+</body>
+</html>
