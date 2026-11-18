@@ -16,10 +16,12 @@ def test_filtros_pt_br():
     assert T.f_brl(-12.5, 2) == "−R$ 12,50"
     assert T.f_brl_mi(444_300) == "R$ 444,3 mil"
     assert T.f_brl_mi(1_800_000) == "R$ 1,80 milhões"
+    assert T.f_brl_mi(100_000) == "R$ 100 mil" and T.f_brl_mi(-40_300) == "−R$ 40,3 mil"
     assert T.f_p(0.0000001) == "< 0,001" and T.f_p(0.0123) == "0,012"
     assert T.f_hr(2.8545) == "2,85"
     assert T.f_data("2026-10-31") == "31/10/2026"
     assert T.f_mes_ano("2024-11-01") == "novembro de 2024"
+    assert T.f_mes_ano("2025-10") == "outubro de 2025"
     assert T.f_sn(-1.0, 2) == "−1,00" and T.f_sn(0.5, 1) == "+0,5"
     assert T.f_pp(0.0123) == "+1,2 p.p." and T.f_pp_abs(-0.0345) == "3,5 p.p."
 

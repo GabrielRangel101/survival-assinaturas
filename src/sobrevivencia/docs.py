@@ -28,6 +28,8 @@ def imagens(pasta: Path = C.FIGURES_DIR) -> dict[str, Markup]:
         "penhasco": "04_penhasco.png", "forest": "05_cox_forest.png", "schoenfeld": "06_schoenfeld.png",
         "valor": "07_valor_canal.png", "payback": "08_payback.png", "armadilhas": "09_armadilhas.png",
         "riscos_competitivos": "10_riscos_competitivos.png", "decisao": "11_decisao.png",
+        "realocacao": "12_realocacao.png", "mrr": "13_mrr.png", "fora_do_tempo": "14_fora_do_tempo.png",
+        "externo": "15_dataset_publico.png",
     }
     return {k: _data_uri(pasta / v) for k, v in nomes.items() if (pasta / v).exists()}
 
@@ -61,6 +63,8 @@ def construir(res: dict | None = None) -> dict[str, Path]:
     saidas["README.md"] = C.RAIZ / "README.md"
     grava(C.RAIZ / "DECISIONS.md", T.renderizar("DECISIONS.template.md", res))
     saidas["DECISIONS.md"] = C.RAIZ / "DECISIONS.md"
+    grava(C.RAIZ / "GUIA_DE_DEFESA.md", T.renderizar("GUIA_DEFESA.template.md", res))
+    saidas["GUIA_DE_DEFESA.md"] = C.RAIZ / "GUIA_DE_DEFESA.md"
     grava(C.PORTFOLIO_DIR / "case.md", T.renderizar("case.template.md", res))
     saidas["case.md"] = C.PORTFOLIO_DIR / "case.md"
     card = T.renderizar("card.template.txt", res).strip()
@@ -74,6 +78,12 @@ def construir(res: dict | None = None) -> dict[str, Path]:
     demo.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(RELATORIO_HTML, demo)
     saidas["demo"] = demo
+    # página online (GitHub Pages serve a pasta docs/ da branch main)
+    pagina = C.RAIZ / "docs" / "index.html"
+    pagina.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(RELATORIO_HTML, pagina)
+    (C.RAIZ / "docs" / ".nojekyll").write_text("", encoding="utf-8")
+    saidas["pagina_online"] = pagina
 
     meta = {
         "slug": SLUG, "categoria": CATEGORIA, "card": card, "tecnologias": ["Python", "pandas", "lifelines"],

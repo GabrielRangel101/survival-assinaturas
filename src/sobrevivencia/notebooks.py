@@ -44,7 +44,7 @@ def _nb01() -> nbf.NotebookNode:
         md("## Os dados\n\nUma linha por assinante. `duracao_meses` é o tempo observado e `evento` vale 1 se cancelou e 0 se foi censurado no corte."),
         code("df.head(8)"),
         code("df.describe(include='all').T[['count', 'unique', 'top', 'mean', 'min', 'max']]"),
-        md("## Entradas e campanhas\n\nA intensidade de entrada tem picos nas campanhas (Black Friday 2024 e 2025, Passe Copa e Eleições 2026)."),
+        md("## Entradas e campanhas\n\nA intensidade de entrada tem picos nas campanhas (Black Friday de cada ano, Passe Copa e Eleições 2026)."),
         code("""entradas = df.groupby(df['data_inicio'].dt.to_period('M')).size()
 fig, ax = plt.subplots(figsize=(10, 3.4))
 ax.bar(entradas.index.astype(str), entradas.values, color=C.COR['meridiano'])
@@ -104,9 +104,10 @@ pd.DataFrame(linhas)"""),
 
 def _nb02() -> nbf.NotebookNode:
     c = [
-        md("# 02 · Análise de sobrevivência (A–H)\n\n"
+        md("# 02 · Análise de sobrevivência (A–K)\n\n"
            "Mesma ordem do relatório HTML: **A** desenho · **B** ingênuo × Kaplan-Meier · **C** comparações · **D** Cox · **E** valor por canal · "
-           "**F** o que poderia ter dado errado · **G** riscos competitivos (só depois de os testes passarem) · **H** limites. "
+           "**F** o que poderia ter dado errado · **G** riscos competitivos (só depois de os testes passarem) · **H** operação (MRR) · "
+           "**I** quem tratar (fora do tempo) · **J** dataset público · **K** limites. "
            "Para ser rápido, o bootstrap usa poucas réplicas aqui; `python run_all.py` usa o número completo."),
         code(SETUP + "\nN_BOOT = 200"),
         md("## A. Desenho\n\n**Evento**: cancelamento efetivo. **Origem do tempo**: primeira cobrança. **Corte**: fixo em 31/10/2026. **Censura**: à direita."),
@@ -150,15 +151,23 @@ pd.DataFrame(X.tabela_hr(cph_c)).set_index('nome')[['hr', 'lo', 'hi', 'verdade',
         code("""cph_p, _ = X.ajustar_complementar(df, ep)
 print('HR de plano (modelo sem o anual):')
 pd.DataFrame([r for r in X.tabela_hr(cph_p) if r['nome'].startswith('plano')]).set_index('nome')[['hr', 'lo', 'hi', 'verdade', 'cobre']]"""),
-        md("## E. Valor por canal: RMST, LTV descontado, CAC e payback\n\nARPU, CAC e taxa de desconto são **premissas** (`config.py`). Medido = coberto pelo KM; projetado = cauda extrapolada."),
+        md("## E. Valor por canal: RMST, LTV de contribuição, CAC e payback\n\nARPU (preço vigente), margem, CAC e taxa de desconto são **premissas** (`config.py`). "
+           "Medido = coberto pelo KM; projetado = cauda extrapolada. O CAC entra com incerteza e a realocação sai como **faixa de cenários**."),
         code("""valor = V.analise_valor(df, n_boot=N_BOOT)
 pd.DataFrame([{'canal': c['rotulo'], 'CAC': c['cac'], 'RMST_24m': c['rmst']['est'], 'LTV_24m': c['ltv']['est'],
                'LTV_lo': c['ltv']['lo'], 'LTV_hi': c['ltv']['hi'], '% medido': c['pct_ltv_medido'],
-               'LTV/CAC': c['ltv_cac']['est'], 'payback (mens.)': c['payback']['est']} for c in valor['canais']]).set_index('canal')"""),
+               'LTV/CAC': c['ltv_cac']['est'] if c['escalavel'] else np.nan,
+               'IC_lo (CAC incerto)': c['ltv_cac_incerteza']['lo'] if c['escalavel'] else np.nan,
+               'IC_hi (CAC incerto)': c['ltv_cac_incerteza']['hi'] if c['escalavel'] else np.nan,
+               'P(melhor)': c['prob_melhor_ltv_cac'], 'payback (mens.)': c['payback']['est']} for c in valor['canais']]).set_index('canal')"""),
         code("""print('Ranking só por CAC (canais com verba):      ', valor['ranking_cac'])
 print('Ranking por LTV/CAC (com permanência):       ', valor['ranking_ltv_cac'])
+print('Ranking só por permanência (sem usar o CAC): ', valor['ranking_ltv'])
 dec = V.decisao_verba(valor)
-print(f"Realocar R$ {dec['verba_exemplo']:,.0f} do pior para o melhor: +R$ {dec['ganho_realocar_pior_para_melhor']:,.0f} de valor líquido (PROJETADO)")
+re_ = dec['realocacao']['pior_para_melhor']
+print(f"Realocar R$ {dec['verba_exemplo']:,.0f} de {re_['origem']} para {re_['destino']} (PROJETADO), conforme o CAC marginal do destino:")
+display(pd.DataFrame(re_['linhas']).set_index('premio').round(3))
+print(f"ponto de equilíbrio: CAC marginal {re_['premio_equilibrio']:.0%} acima do médio")
 acao = V.acao_mes3(df, X.tabela_hr(cph_c))
 print('MEDIDO  -> prob. de cancelar no mês 3-4 (Black Friday):', round(acao['medido']['q_penhasco'], 3))
 p = acao['projetado']
@@ -177,10 +186,49 @@ print({k: (round(v, 3) if isinstance(v, float) else v) for k, v in rk.items() if
 pd.DataFrame({m: {k: v['est'] for k, v in pts.items() if isinstance(v, dict)} for m, pts in rc['pontos'].items()})"""),
         code("""res_g = {'riscos_competitivos': rc}
 display(Image(str(F.fig_riscos_competitivos(res_g, FIG))))"""),
-        md("## H. Limites honestos\n\n"
+        md("## H. Operação: ponte de MRR, retenção líquida de receita, reativação e trial\n\n"
+           "Camada à parte, com **premissas fictícias** de reativação, troca de plano e trial (`config.py`). A análise de sobrevivência olha só o primeiro período."),
+        code("""from sobrevivencia import operacao as O
+op = O.analise(df, n_boot=100)
+print('A ponte fecha em todos os meses:', op['ponte_confere'])
+u = op['ultimos_12m']
+pd.Series({k: u[k] for k in ('inicial', 'novo', 'reativacao', 'exp_upgrade', 'exp_fim_promo', 'exp_reajuste', 'contracao', 'churn', 'final')}).to_frame('R$ de MRR (12 meses)')"""),
+        code("""g = op['retencao_receita']['global']
+print(f"NRR {g['nrr']:.1%} (IC {g['nrr_lo']:.1%} a {g['nrr_hi']:.1%}) | GRR {g['grr']:.1%} | base: {g['n']} assinantes ativos em {op['retencao_receita']['mes_base']}")
+pd.DataFrame({c: {'NRR': v['nrr'], 'GRR': v['grr'], 'n': v['n']} for c, v in op['retencao_receita']['por_canal'].items()}).T"""),
+        code("""print('Reativação:', {k: round(v['taxa'], 3) for k, v in op['reativacao']['por_causa'].items()})
+print('Retenção M12: primeiro período', round(op['reativacao']['retencao_m12_primeiro_periodo'], 3), '| com reativação', round(op['reativacao']['retencao_m12_com_reativacao'], 3))
+pd.DataFrame(op['trial']['canais'])[['rotulo', 'trials', 'convertidos', 'conversao', 'lo', 'hi']].set_index('rotulo')"""),
+        md("## I. Quem tratar: validação fora do tempo, score e teste da ação\n\n"
+           "O modelo é ajustado só com o que se sabia em T0 e testado em quem entrou depois. O **teto** é o C-index do risco individual verdadeiro (só existe porque os dados são sintéticos)."),
+        code("""from sobrevivencia import preditivo as PD
+fora = PD.analise_fora_do_tempo(df, lat)
+print('T0 =', fora['t0'], '| treino', fora['n_treino'], '| teste', fora['n_teste'])
+print('C-index:', {k: round(v, 3) for k, v in fora['cindex'].items()})
+print('Topo do score (20%):', {k: round(v, 3) for k, v in fora['captura'].items() if isinstance(v, float)})
+pd.DataFrame(fora['calibracao']).round(3).set_index('faixa')"""),
+        code("""alvo = PD.alvo_acao(df, acao, X.tabela_hr(cph_c))
+display(pd.DataFrame(alvo['faixas']).set_index('faixa')[['n', 'q_observado', 'excesso', 'liquido_por_tratado', 'efetividade_equilibrio']].round(3))
+teste = PD.desenho_teste(acao, alvo)
+print('Teste A/B da ação (poder 80%):')
+display(pd.DataFrame(teste['linhas']).round(3))
+print(f"Com uma campanha ({teste['vivos_mes3_coorte']:.0f} assinantes) só se detecta efetividade de {teste['efetividade_minima_detectavel']:.0%}")"""),
+        md("## J. Dataset público de churn\n\n"
+           "Amostra pública de churn de telecom publicada pela IBM (Apache-2.0; `data_externo/LEIA-ME.md`). **Dado de exemplo de outro setor**, não de operação real; o processo gerador não é meu."),
+        code("""from sobrevivencia import externo as E
+ex = E.analise()
+print(ex['fonte']['nome'], '|', ex['dados']['n'], 'clientes |', f"{ex['dados']['pct_eventos']:.1%} cancelaram")
+print('Primeiro mês:', {k: round(v, 3) for k, v in ex['primeiro_mes'].items() if isinstance(v, float)})
+pd.DataFrame([{'contrato': g['rotulo'], 'n': g['n'], **{h: g['horizontes'][h]['valor'] for h in ('m12', 'm36', 'm60')}} for g in ex['contrato']['grupos']]).set_index('contrato')"""),
+        code("""c = ex['cox']
+print('Cox ingênuo: global p =', c['ingenuo']['ph_global']['p'], '| violam', c['ingenuo']['n_viola'], 'de', c['ingenuo']['n_covs'])
+print('Cox estratificado por contrato: global p =', c['corrigido']['ph_global']['p'], '| violam', c['corrigido']['n_viola'], 'de', c['corrigido']['n_covs'])
+pd.DataFrame(c['corrigido']['coefs']).set_index('rotulo')[['hr', 'lo', 'hi', 'p']].round(3)"""),
+        md("## K. Limites honestos\n\n"
            "- Dados sintéticos e efeitos plantados: o notebook mostra que o método recupera o efeito certo, não uma descoberta sobre o mundo.\n"
-           "- M24 não é observável com esta janela.\n"
-           "- ARPU, CAC, taxa de desconto e a efetividade da ação do mês 3 são premissas.\n"
+           "- M24 só é observável nas safras mais antigas (a janela de entrada cobre 36 meses).\n"
+           "- ARPU, margem, CAC, taxa de desconto, a camada de operação e a efetividade da ação do mês 3 são premissas.\n"
+           "- O dataset público é dado de exemplo de outro setor; a correção que funcionou no sintético não resolve a violação de riscos proporcionais ali.\n"
            "- O KM agregado mistura safras com riscos diferentes; o reajuste de preço é associação, não causalidade."),
     ]
     return new_notebook(cells=c, metadata={"kernelspec": {"name": "python3", "display_name": "Python 3", "language": "python"}})

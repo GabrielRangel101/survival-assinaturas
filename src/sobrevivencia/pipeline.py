@@ -15,7 +15,10 @@ from . import cohorts as H
 from . import competing as G
 from . import config as C
 from . import cox as X
+from . import externo as E
+from . import operacao as O
 from . import pitfalls as P
+from . import preditivo as PD
 from . import simulate as S
 from . import value as V
 
@@ -87,7 +90,10 @@ def _premissas(n_boot: int) -> dict:
         "risco_mensal_base": C.HAZARD_BASE,
         "promo": {"desconto": C.PROMO_DESCONTO, "meses": C.PROMO_MESES},
         "cac": dict(C.CAC), "canais_escalaveis": list(C.CANAIS_ESCALAVEIS),
-        "preco": dict(C.PRECO), "taxa_desconto_anual": C.TAXA_DESCONTO_ANUAL,
+        "preco": dict(C.PRECO), "preco_vigente": {p: V.preco_vigente(p) for p in C.PLANOS},
+        "taxa_desconto_anual": C.TAXA_DESCONTO_ANUAL,
+        "margem": {"contribuicao": C.MARGEM_CONTRIBUICAO, "cobranca": C.CUSTO_COBRANCA, "por_real": C.MARGEM_POR_REAL},
+        "cac_incerteza": C.CAC_INCERTEZA, "premios_cac_marginal": list(C.PREMIOS_CAC_MARGINAL),
         "horizonte_ltv": C.HORIZONTE_LTV, "verba_exemplo": C.VERBA_EXEMPLO,
         "acao": {"efetividades": list(C.ACAO_EFETIVIDADES), "efetividade_base": C.ACAO_EFETIVIDADE_BASE,
                  "custo_por_assinante": C.ACAO_CUSTO_POR_ASSINANTE},
@@ -209,6 +215,12 @@ def montar_resultados(df: pd.DataFrame, lat: S.Latente, n_boot: int = C.N_BOOT,
     res["decisao_verba"] = V.decisao_verba(res["valor"])
     res["acao_mes3"] = V.acao_mes3(df, brutos["tab_c"])
     marca("E. valor por canal")
+    res["preditivo"] = PD.analise(df, lat, res["acao_mes3"], brutos["tab_c"])
+    marca("E2. fora do tempo, score e teste da ação")
+    res["operacao"] = O.analise(df)
+    marca("I. operação: MRR, reativação, trial")
+    res["externo"] = E.analise()
+    marca("J. dataset público")
     ph_i = res["cox"]["ingenuo"]["ph"]
     bf = next(r for r in ph_i if r["nome"] == "oferta_bf")
     res["armadilhas"] = {

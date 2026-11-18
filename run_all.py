@@ -25,6 +25,7 @@ if hasattr(sys.stdout, "reconfigure"):
 
 from sobrevivencia import config as C  # noqa: E402
 from sobrevivencia import docs, figures, montecarlo, notebooks, pipeline  # noqa: E402
+from sobrevivencia import preditivo as PD  # noqa: E402
 from sobrevivencia import simulate as S  # noqa: E402
 
 
@@ -56,6 +57,11 @@ def main() -> int:
     n_mc = montecarlo.MC_REPLICAS_RAPIDO if args.rapido else montecarlo.MC_REPLICAS
     print(f"    Validação do Cox corrigido em {n_mc} réplicas (seeds diferentes)")
     res["recuperacao_mc"] = montecarlo.recuperacao(n_rep=n_mc)
+    n_rob, n_rob_n = (2, 5000) if args.rapido else (montecarlo.ROB_REPLICAS, montecarlo.ROB_N)
+    print(f"    Robustez: mesmo modelo em dados com gerador diferente ({n_rob} réplicas por variante)")
+    res["robustez_mc"] = montecarlo.robustez(n_rep=n_rob, n=n_rob_n)
+    PD.pontuar(df).to_csv(C.DATA_DIR / "score_risco.csv", index=False, encoding="utf-8")
+    print("    data/score_risco.csv gravado (probabilidade de cancelar em 6 meses por assinante)")
     S.salvar_ground_truth(extra["gt"])
     C.RESULTS_JSON.write_text(pipeline.serializar(res), encoding="utf-8")
     print(f"    {C.RESULTS_JSON.relative_to(RAIZ)} gravado")

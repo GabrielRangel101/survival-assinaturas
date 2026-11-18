@@ -62,11 +62,14 @@ def f_brl(x, d: int = 0) -> str:
 
 def f_brl_mi(x) -> str:
     v = float(x)
-    if abs(v) >= 1e6:
-        return "R$ " + _dec(v / 1e6, 2) + " milhões"
-    if abs(v) >= 1e3:
-        return "R$ " + _dec(v / 1e3, 1) + " mil"
-    return "R$ " + _dec(v, 0)
+    sinal = "−" if v < 0 else ""
+    a = abs(v)
+    if a >= 1e6:
+        return sinal + "R$ " + _dec(a / 1e6, 2) + " milhões"
+    if a >= 1e3:
+        s = _dec(a / 1e3, 1)
+        return sinal + "R$ " + (s[:-2] if s.endswith(",0") else s) + " mil"
+    return sinal + "R$ " + _dec(a, 0)
 
 
 def f_p(x) -> str:
@@ -86,7 +89,8 @@ def f_data(s: str) -> str:
 
 
 def f_mes_ano(s: str) -> str:
-    y, m, _ = (int(p) for p in s.split("-"))
+    """'2024-11-01' ou '2024-11' -> 'novembro de 2024'."""
+    y, m = (int(p) for p in s.split("-")[:2])
     return f"{_MESES[m - 1]} de {y}"
 
 
@@ -136,7 +140,26 @@ def derivar(res: dict) -> dict:
     ph_i = {r["nome"]: r for r in cox["ingenuo"]["ph"]}
     ph_c = {r["nome"]: r for r in cox["corrigido"]["ph"]}
     acao = res["acao_mes3"]
+    real = dv["realocacao"]["pior_para_melhor"]
+    sens = dv["sensibilidade"]
+    op = res["operacao"]
+    ext = res["externo"]
     d = {
+        "real": real, "real_origem": canais[real["origem"]], "real_destino": canais[real["destino"]],
+        "sens": sens, "canal_segundo": canais[sens["segundo"]], "empate_midia": sens["empate"].get("midia_paga"),
+        "rank_ltv": [canais[c] for c in res["valor"]["ranking_ltv"]],
+        "fora": res["preditivo"]["fora_do_tempo"], "alvo": res["preditivo"]["alvo_acao"],
+        "teste": res["preditivo"]["teste_acao"],
+        "op": op, "nrr": op["retencao_receita"]["global"],
+        "nrr_canais": sorted(((c, op["retencao_receita"]["por_canal"][c]) for c in op["retencao_receita"]["por_canal"]),
+                             key=lambda kv: -kv[1]["nrr"]),
+        "trial_canais": sorted(op["trial"]["canais"], key=lambda x: -x["conversao"]),
+        "ext": ext, "ext_contratos": {g["chave"]: g for g in ext["contrato"]["grupos"]},
+        "ext_ing": {r["nome"]: r for r in ext["cox"]["ingenuo"]["coefs"]},
+        "ext_cor": {r["nome"]: r for r in ext["cox"]["corrigido"]["coefs"]},
+        "rob": {v["id"]: v for v in res["robustez_mc"]["variantes"]},
+        "rob_pior": {v["id"]: max(v["efeitos"], key=lambda e: abs(e["vies_rel"])) for v in res["robustez_mc"]["variantes"]},
+        "m24_ok": bool(tab["global"]["m24"]["ok"]),
         "rot": rot,
         "canais": canais,
         "melhor_m12": ordem_m12[0], "pior_m12": ordem_m12[-1],
@@ -204,6 +227,8 @@ _PERMITIDOS = [
     re.compile(r"\b95\s*%"),                                 # nível do IC
     re.compile(r"\bv?\d+\.\d+\.\d+\b"),                      # x.y.z (versões)
     re.compile(r"\b100\s*%"),                                # "100% sintético"
+    re.compile(r"\bApache-2\.0\b"),                          # licença do dataset público
+    re.compile(r"\bSHA-256\b"),                              # nome do hash
 ]
 
 

@@ -21,6 +21,7 @@ pytestmark = pytest.mark.docs
 MODELOS = {
     "README.template.md": (False, C.RAIZ / "README.md"),
     "DECISIONS.template.md": (False, C.RAIZ / "DECISIONS.md"),
+    "GUIA_DEFESA.template.md": (False, C.RAIZ / "GUIA_DE_DEFESA.md"),
     "case.template.md": (False, C.PORTFOLIO_DIR / "case.md"),
     "card.template.txt": (False, C.PORTFOLIO_DIR / "card.txt"),
     "report.template.html": (True, docs.RELATORIO_HTML),
@@ -59,9 +60,11 @@ def test_documento_gerado_e_identico_ao_renderizado_de_results(res, nome):
     assert atual == esperado, f"{saida.name} está desatualizado: rode `python run_all.py`"
 
 
-def test_demo_do_portfolio_e_copia_do_relatorio():
+def test_demo_do_portfolio_e_a_pagina_online_sao_copias_do_relatorio():
     demo = C.PORTFOLIO_DIR / "public" / "demos" / f"{docs.SLUG}.html"
     assert demo.read_bytes() == docs.RELATORIO_HTML.read_bytes()
+    assert (C.RAIZ / "docs" / "index.html").read_bytes() == docs.RELATORIO_HTML.read_bytes()
+    assert (C.RAIZ / "docs" / ".nojekyll").exists()
 
 
 def test_numeros_chave_aparecem_nos_tres_documentos(res):
@@ -148,7 +151,7 @@ def test_relatorio_e_autonomo_sem_cdn_e_com_modo_noturno():
         assert proibido not in baixo, proibido
     assert 'data-theme="dark"' in html and "prefers-color-scheme: dark" in html
     assert "localStorage" in html and "<script" in html
-    assert html.count("data:image/png;base64,") >= 10          # figuras embutidas
+    assert html.count("data:image/png;base64,") >= 15          # figuras embutidas
     assert len(html.encode("utf-8")) < 5_000_000
 
 
@@ -167,7 +170,7 @@ def test_dados_embutidos_no_relatorio_batem_com_results(res):
     base = dados["explorador"]["curvas"]["todos|todos|todas"]
     glob = res["ingenuo_vs_km"]["global"]
     assert base["h"]["12"]["v"] == pytest.approx(glob["m12"]["valor"], abs=5e-5)
-    assert base["h"]["24"]["ok"] is False
+    assert base["h"]["24"]["ok"] is True and base["h"]["24"]["v"] == pytest.approx(glob["m24"]["valor"], abs=5e-5)
     assert dados["explorador"]["metas"] == {str(h): C.METAS[h] for h in C.HORIZONTES}
     assert len(dados["safras"]) == C.N_SAFRAS
 
@@ -175,6 +178,40 @@ def test_dados_embutidos_no_relatorio_batem_com_results(res):
 # ------------------------------------------------------------------------------------
 # Portfolio
 # ------------------------------------------------------------------------------------
+
+def test_todas_as_figuras_existem_e_estao_no_relatorio():
+    figs = sorted(C.FIGURES_DIR.glob("*.png"))
+    assert len(figs) >= 15 and all(f.stat().st_size > 20_000 for f in figs)
+    nomes = {f.name for f in figs}
+    for novo in ("12_realocacao.png", "13_mrr.png", "14_fora_do_tempo.png", "15_dataset_publico.png"):
+        assert novo in nomes
+
+
+def test_textos_de_honestidade_estao_nos_documentos():
+    readme = (C.RAIZ / "README.md").read_text(encoding="utf-8")
+    decisions = (C.RAIZ / "DECISIONS.md").read_text(encoding="utf-8")
+    html = docs.RELATORIO_HTML.read_text(encoding="utf-8")
+    guia = (C.RAIZ / "GUIA_DE_DEFESA.md").read_text(encoding="utf-8")
+    # o CAC é premissa escolhida para dar resposta não trivial, e isso fica dito
+    assert "não trivial" in decisions and "não trivial" in html and "não trivial" in readme
+    # os efeitos plantados tornam a validação circular em parte, e isso fica dito
+    assert "circular" in html.lower() and "circular" in guia.lower()
+    # o dataset público é dado de exemplo e não de operação real
+    for txt in (readme, html, guia):
+        assert "não" in txt and "operação real" in txt
+    # o uso de IA é declarado e há guia de defesa
+    assert "apoio de IA" in readme and "GUIA_DE_DEFESA.md" in readme
+    # a conclusão de realocação sai como faixa e o número único antigo não aparece no resumo
+    resumo = readme.split("## O que este projeto demonstra")[0]
+    assert "IC" in resumo and "ponto de equilíbrio" in resumo
+
+
+def test_github_nao_conta_arquivos_gerados_como_linguagem():
+    ga = (C.RAIZ / ".gitattributes").read_text(encoding="utf-8")
+    for padrao in ("report/*.html", "docs/*.html", "notebooks/*.ipynb", "results/*.json"):
+        assert f"{padrao} linguist-generated=true" in ga
+    assert "text=auto" in ga
+
 
 def test_card_tem_ate_250_caracteres():
     card = (C.PORTFOLIO_DIR / "card.txt").read_text(encoding="utf-8").strip()
@@ -235,11 +272,13 @@ def test_arquivos_em_utf8_sem_bom_e_sem_mojibake():
 
 def test_results_json_estrutura_e_coerencia_interna(res):
     for chave in ("premissas", "dados", "ingenuo_vs_km", "comparacoes", "cox", "valor", "decisao_verba",
-                  "acao_mes3", "armadilhas", "riscos_competitivos", "explorador", "verdade", "meta"):
+                  "acao_mes3", "armadilhas", "riscos_competitivos", "explorador", "verdade", "meta",
+                  "preditivo", "operacao", "externo", "robustez_mc", "recuperacao_mc"):
         assert chave in res
     assert res["dados"]["n_eventos"] + res["dados"]["n_censurados"] == res["dados"]["n"] == C.N_ASSINANTES
     assert res["premissas"]["metas"] == {f"m{h}": C.METAS[h] for h in C.HORIZONTES}
-    assert res["ingenuo_vs_km"]["n_celulas_m24_preenchidas"] == 0
+    assert res["ingenuo_vs_km"]["n_celulas_m24_preenchidas"] == 4 and res["ingenuo_vs_km"]["global"]["m24"]["ok"]
+    assert res["operacao"]["ponte_confere"] is True
     assert res["cox"]["corrigido"]["ph_global"]["p"] > 0.05 > res["cox"]["ingenuo"]["ph_global"]["p"]
 
 
