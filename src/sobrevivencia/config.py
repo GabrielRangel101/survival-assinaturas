@@ -30,8 +30,8 @@ DATASET_CSV = DATA_DIR / "assinantes.csv"
 # Desenho do estudo
 # --------------------------------------------------------------------------------------
 SEED = 42
-N_ASSINANTES = 12_000
-ENTRADA_INI = date(2024, 11, 1)
+N_ASSINANTES = 18_000
+ENTRADA_INI = date(2023, 11, 1)  # 36 meses de entrada: as safras mais antigas têm 24+ meses de seguimento
 ENTRADA_FIM = date(2026, 10, 31)
 CORTE = date(2026, 10, 31)  # corte de observação fixo (censura à direita)
 DIAS_POR_MES = 30.4375  # 365,25 / 12
@@ -108,6 +108,7 @@ PROMO_MESES = 3  # por 3 meses
 
 # Campanhas / eventos de calendário (início, fim, multiplicador de intensidade de entrada)
 CAMPANHAS = {
+    "black_friday_2023": (date(2023, 11, 24), date(2023, 12, 4), 4.0),
     "black_friday_2024": (date(2024, 11, 22), date(2024, 12, 2), 5.0),
     "black_friday_2025": (date(2025, 11, 21), date(2025, 12, 1), 6.0),
     "passe_copa_2026": (date(2026, 6, 11), date(2026, 7, 19), 1.8),
@@ -188,7 +189,7 @@ MESES_LATENTES = 26  # grade diária da simulação cobre esses meses de vida (>
 # --------------------------------------------------------------------------------------
 # Safras (trimestres a partir da data de início da janela)
 # --------------------------------------------------------------------------------------
-N_SAFRAS = 8
+N_SAFRAS = 12
 MESES_POR_SAFRA = 3
 
 # --------------------------------------------------------------------------------------
@@ -215,6 +216,16 @@ CANAIS_ESCALAVEIS = ("busca_paga", "midia_paga", "social", "indicacao")
 TAXA_DESCONTO_ANUAL = 0.12  # taxa de desconto anual para o LTV
 HORIZONTE_LTV = 24  # meses
 VERBA_EXEMPLO = 100_000.0  # R$ realocados no exemplo de decisão
+
+# LTV de CONTRIBUIÇÃO (e não de receita): fração da receita que sobra depois dos custos variáveis.
+MARGEM_CONTRIBUICAO = 0.70   # premissa fictícia: sobra após conteúdo licenciado, plataforma e atendimento
+CUSTO_COBRANCA = 0.035       # premissa fictícia: taxa do meio de pagamento sobre a receita cobrada
+MARGEM_POR_REAL = MARGEM_CONTRIBUICAO - CUSTO_COBRANCA  # contribuição por R$ de receita
+# ARPU = preço de tabela VIGENTE (pós-reajuste de jul/2026) para quem seria adquirido hoje.
+# Incerteza do CAC: o CAC verdadeiro varia uniformemente em ±CAC_INCERTEZA em torno da premissa.
+CAC_INCERTEZA = 0.30
+# CAC marginal acima do médio no canal que recebe a verba (indicação e mídia saturam): cenários.
+PREMIOS_CAC_MARGINAL = (0.0, 0.25, 0.50, 1.00)
 
 # Ação no mês 3 da promoção (premissas de PROJEÇÃO; não medidas)
 ACAO_EFETIVIDADES = (0.15, 0.35, 0.50)  # fração do excesso de cancelamentos evitada
@@ -252,3 +263,20 @@ COR_PLANO = {
     "combo": "#2F6846",
     "estudante": "#9A7B1E",
 }
+
+# --------------------------------------------------------------------------------------
+# Camada de OPERAÇÃO (MRR, reativação, troca de plano, trial): premissas FICTÍCIAS.
+# Gerada com fluxos de números aleatórios independentes (SeedSequence), então NÃO altera os
+# tempos de vida da análise de sobrevivência, que segue olhando o PRIMEIRO período de assinatura.
+# --------------------------------------------------------------------------------------
+# Conversão de trial pago por canal (fração dos trials iniciados que viram assinatura)
+TRIAL_CONVERSAO = {"organico": 0.38, "busca_paga": 0.30, "midia_paga": 0.18, "social": 0.22,
+                   "indicacao": 0.52, "email_crm": 0.45}
+# Troca de plano durante a vida (taxa mensal constante; destino). Anual não troca.
+MUDANCA_PLANO = {"mensal": ("combo", 0.010), "combo": ("mensal", 0.006), "estudante": ("mensal", 0.012)}
+# Reativação: probabilidade de voltar após cancelar (por causa) e atraso médio em dias (exponencial)
+REATIVA_PROB = {"voluntario": 0.07, "involuntario": 0.30, "fim_contrato": 0.10}
+REATIVA_ATRASO_DIAS = {"voluntario": 90.0, "involuntario": 15.0, "fim_contrato": 45.0}
+REATIVA_RISCO_MENSAL = 0.05   # risco mensal constante de cancelar de novo após reativar
+JANELA_NRR_MESES = 12
+N_BOOT_OPERACAO = 400

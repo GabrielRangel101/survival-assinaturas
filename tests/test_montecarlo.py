@@ -33,3 +33,16 @@ def test_replicas_deterministicas():
     a = M.recuperacao(n_rep=1, n=4000, log=lambda *x: None)
     b = M.recuperacao(n_rep=1, n=4000, log=lambda *x: None)
     assert a == b
+
+
+def test_robustez_tem_tres_variantes_e_o_penhasco_deslocado_piora_a_cobertura():
+    r = M.robustez(n_rep=2, n=5000, log=lambda *a: None)
+    assert [v["id"] for v in r["variantes"]] == ["oficial", "fragilidade", "penhasco_deslocado"]
+    for v in r["variantes"]:
+        assert 0.0 <= v["cobertura_total"] <= 1.0 and v["vies_abs_max"] >= 0
+        assert [e["nome"] for e in v["efeitos"]] == list(M.ROB_EFEITOS)
+    por = {v["id"]: v for v in r["variantes"]}
+    # com o efeito fora do mês que o modelo supõe, o pós-penhasco fica visivelmente viesado
+    pos = {e["nome"]: e for e in por["penhasco_deslocado"]["efeitos"]}["promo_pos"]
+    assert abs(pos["vies_rel"]) > 0.15
+    assert por["penhasco_deslocado"]["vies_abs_max"] > por["oficial"]["vies_abs_max"]

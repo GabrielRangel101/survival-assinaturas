@@ -171,8 +171,11 @@ def multiplicador_covariaveis(df: pd.DataFrame) -> np.ndarray:
 
 
 def _taxas_diarias(df: pd.DataFrame, mult: np.ndarray, d0: int, d1: int,
-                   n_dias: int) -> np.ndarray:
-    """Matriz (len, n_dias) de risco por dia de vida para as linhas d0:d1 de ``df``."""
+                   n_dias: int, desloc_dias: float = 0.0) -> np.ndarray:
+    """Matriz (len, n_dias) de risco por dia de vida para as linhas d0:d1 de ``df``.
+
+    ``desloc_dias`` desloca o efeito por período da promoção (variante de robustez: o penhasco acontece
+    meio mês depois do que o modelo corrigido supõe). Zero = o desenho oficial."""
     sub = df.iloc[d0:d1]
     ages = np.arange(n_dias)
     k = np.floor(ages / C.DIAS_POR_MES).astype(int)
@@ -191,8 +194,9 @@ def _taxas_diarias(df: pd.DataFrame, mult: np.ndarray, d0: int, d1: int,
     bf = (sub["oferta_entrada"] == "black_friday").to_numpy()
     if bf.any():
         promo_k = np.ones(n_dias)
+        k_p = np.floor((ages - desloc_dias) / C.DIAS_POR_MES).astype(int)
         for p in C.HR_PROMO_PERIODOS.values():
-            promo_k[(k >= p["k_ini"]) & (k < p["k_fim"])] = p["hr"]
+            promo_k[(k_p >= p["k_ini"]) & (k_p < p["k_fim"])] = p["hr"]
         h[bf] *= promo_k[None, :]
 
     # reajuste de preço em Mensal/Combo: efeito de CALENDÁRIO durante a janela
@@ -207,13 +211,21 @@ def _taxas_diarias(df: pd.DataFrame, mult: np.ndarray, d0: int, d1: int,
     return h
 
 
-def simular(seed: int = C.SEED, n: int = C.N_ASSINANTES) -> tuple[pd.DataFrame, Latente]:
-    """Gera o dataset observado (com censura) e as quantidades latentes de verdade."""
+def simular(seed: int = C.SEED, n: int = C.N_ASSINANTES, fragilidade: float = 0.0,
+            desloc_penhasco_dias: float = 0.0) -> tuple[pd.DataFrame, Latente]:
+    """Gera o dataset observado (com censura) e as quantidades latentes de verdade.
+
+    Os dois argumentos extras criam VARIANTES de robustez (zero = desenho oficial, que não muda):
+    ``fragilidade`` = variância de uma heterogeneidade gama NÃO observada que multiplica o risco de cada assinante;
+    ``desloc_penhasco_dias`` = atraso do efeito por período da promoção (o modelo corrigido supõe o mês 3–4)."""
     df = gerar_entradas(seed, n)
     ss = np.random.SeedSequence(seed)
     r_t, r_causa = (np.random.default_rng(s) for s in ss.spawn(6)[4:6])
 
     mult = multiplicador_covariaveis(df)
+    if fragilidade > 0:
+        r_frag = np.random.default_rng(np.random.SeedSequence(seed).spawn(11)[10])
+        mult = mult * r_frag.gamma(1.0 / fragilidade, fragilidade, size=n)  # média 1, variância = fragilidade
     n_dias = int(np.ceil(C.MESES_LATENTES * C.DIAS_POR_MES))
     E = r_t.standard_exponential(n)
 
@@ -223,7 +235,7 @@ def simular(seed: int = C.SEED, n: int = C.N_ASSINANTES) -> tuple[pd.DataFrame, 
     passo = 3000
     for a in range(0, n, passo):
         b = min(a + passo, n)
-        h = _taxas_diarias(df, mult, a, b, n_dias)
+        h = _taxas_diarias(df, mult, a, b, n_dias, desloc_penhasco_dias)
         H = np.cumsum(h, axis=1)
         e = E[a:b]
         pos = (H < e[:, None]).sum(axis=1)          # primeiro dia em que H >= E
