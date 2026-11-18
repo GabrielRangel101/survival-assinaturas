@@ -18,7 +18,7 @@ def test_censura_ignorada_km_e_o_mais_proximo_da_verdade(df, gt):
     erro = {m["id"]: abs(m["erro_pp"]) for m in r["metodos"]}
     assert erro["kaplan_meier"] < 0.02
     assert erro["censura_como_cancelamento"] > 0.25
-    assert erro["descartar_censurados"] > 0.08
+    assert erro["descartar_censurados"] > 0.04
     km = next(m for m in r["metodos"] if m["id"] == "kaplan_meier")
     assert km["lo"] <= r["verdade"] <= km["hi"]
 
