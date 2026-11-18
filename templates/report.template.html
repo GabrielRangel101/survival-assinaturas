@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Gazeta Meridiano — Edição Especial: Sobrevivência de assinantes</title>
-<meta name="description" content="Relatório interativo (dados 100% sintéticos): análise de sobrevivência aplicada à retenção de assinaturas, com explorador de curvas de Kaplan-Meier.">
+<meta name="description" content="Relatório interativo (dados 100% sintéticos): análise de sobrevivência aplicada à retenção de assinaturas, com Kaplan-Meier, Cox, LTV por canal, MRR, validação fora do tempo e dataset público.">
 {% raw %}
 <style>
   :root {
@@ -159,6 +159,14 @@
   .metas-row .m { width: 110px; }
   .metas-row label { display: block; font-size: 0.74rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-muted); font-weight: 700; margin-bottom: 4px; }
   .metas-row input { width: 100%; font-family: var(--font-body); font-size: 0.95rem; padding: 6px 8px; background: var(--paper); color: var(--ink); border: 1px solid var(--rule); border-radius: 3px; }
+  .resumo { border: 2px solid var(--rule-strong); background: var(--paper-raised); padding: 22px 26px; margin: 26px 0 8px; }
+  .resumo h3 { margin: 0 0 4px; font-family: var(--font-display); font-size: 1.35rem; }
+  .resumo-nota { margin: 0 0 12px; font-size: 0.88rem; color: var(--ink-muted); }
+  .achados { margin: 0 0 14px; padding-left: 1.3rem; }
+  .achados li { margin-bottom: 0.95rem; line-height: 1.55; }
+  .resumo-decisao { border-top: 3px double var(--rule-strong); padding-top: 12px; }
+  .resumo-decisao h4 { margin: 0 0 6px; font-family: var(--font-display); font-size: 1.1rem; }
+  .resumo-decisao p { margin: 0; }
   .decisao { border: 2px solid var(--rule-strong); padding: 20px 24px; margin: 22px 0; background: var(--paper-raised); }
   .decisao h4 { margin: 0 0 8px; font-family: var(--font-display); font-size: 1.15rem; }
   .colophon { margin-top: 56px; padding-top: 20px; border-top: 3px double var(--rule-strong); color: var(--ink-muted); font-size: 0.86rem; text-align: center; }
@@ -224,15 +232,46 @@
       </div>
       <div class="stat">
         <span class="num is-good" data-countup="{{ d.canal_melhor.ltv_cac.est|round(3) }}" data-suffix="×" data-decimals="1">{{ d.canal_melhor.ltv_cac.est|n(1) }}×</span>
-        <span class="label">Retorno por real em {{ d.canal_melhor.rotulo }}, o melhor canal com verba (LTV/CAC)</span>
+        <span class="label">Retorno por real em {{ d.canal_melhor.rotulo }}, o melhor canal com verba (LTV de contribuição ÷ CAC)</span>
       </div>
     </div>
 
-    <p class="lede">
-      <strong>Recomendação do projeto:</strong> priorizar a verba em {{ d.canal_melhor.rotulo }} e tirar de {{ d.canal_pior.rotulo }}, e
-      tratar o mês 3 da promoção com uma ação de retenção barata. Os valores em R$ são <strong>projeções</strong> sobre premissas
-      explícitas, separadas do que foi <strong>medido</strong> nas Seções B a D (ver Seção E).
-    </p>
+    <div class="resumo">
+      <h3>Resumo executivo: 3 achados e 1 decisão</h3>
+      <p class="resumo-nota">Intervalos de 95%. O que depende de premissa (CAC, margem, efetividade da ação) está marcado como <span class="tag-proj">projetado</span>.</p>
+      <ol class="achados">
+        <li>
+          <strong>A retenção medida é {{ ingenuo_vs_km.global.m12.valor|pct }} em M12 e {{ ingenuo_vs_km.global.m24.valor|pct }} em M24.</strong>
+          Por Kaplan-Meier: M12 {{ ingenuo_vs_km.global.m12.valor|pct }} (IC {{ ingenuo_vs_km.global.m12.lo|pct }} a {{ ingenuo_vs_km.global.m12.hi|pct }}), {{ d.status_txt[ingenuo_vs_km.global.m12.status] }} meta fictícia de {{ premissas.metas.m12|pct(0) }};
+          M18 {{ ingenuo_vs_km.global.m18.valor|pct }} (IC {{ ingenuo_vs_km.global.m18.lo|pct }} a {{ ingenuo_vs_km.global.m18.hi|pct }}), {{ d.status_txt[ingenuo_vs_km.global.m18.status] }} meta de {{ premissas.metas.m18|pct(0) }};
+          M24 {{ ingenuo_vs_km.global.m24.valor|pct }} (IC {{ ingenuo_vs_km.global.m24.lo|pct }} a {{ ingenuo_vs_km.global.m24.hi|pct }}), {{ d.status_txt[ingenuo_vs_km.global.m24.status] }} meta de {{ premissas.metas.m24|pct(0) }}.
+          A conta "ativos ÷ iniciados" vai de {{ d.ingenua_pior.ret_ingenua|pct(0) }} a {{ d.ingenua_melhor.ret_ingenua|pct(0) }} por safra e tem correlação {{ ingenuo_vs_km.rho_ingenua_idade|sn(2) }} com a idade da safra: mede quando a safra entrou, não se ela retém.
+        </li>
+        <li>
+          <strong>A retenção quebra no mês seguinte ao fim da promoção.</strong>
+          {{ acao_mes3.medido.q_penhasco|pct }} de quem chegou ao mês 3 da Black Friday cancela em um mês, contra {{ armadilhas.riscos_proporcionais.q_base_mes3|pct }} de quem entrou sem promoção.
+          O Cox corrigido estima risco <strong>{{ d.pen.hr|hr }}×</strong> maior (IC {{ d.pen.hr_lo|hr }} a {{ d.pen.hr_hi|hr }}); o Cox ingênuo, com um HR único, enxerga só {{ d.hr_bf.hr|hr }}× e esconde o penhasco.
+        </li>
+        <li>
+          <strong>O canal mais barato não é o que mais rende, mas o ranking de retorno depende do CAC, que é premissa.</strong>
+          {{ d.canal_mais_barato.rotulo }} tem o menor CAC entre os canais com verba ({{ d.canal_mais_barato.cac|brl }}), mas a permanência põe {{ d.canal_melhor.rotulo }} na frente:
+          LTV de contribuição em {{ premissas.horizonte_ltv }} meses de {{ d.canal_melhor.ltv.est|brl }} (IC {{ d.canal_melhor.ltv.lo|brl }} a {{ d.canal_melhor.ltv.hi|brl }}) contra {{ d.canal_midia.ltv.est|brl }} (IC {{ d.canal_midia.ltv.lo|brl }} a {{ d.canal_midia.ltv.hi|brl }}).
+          Com o CAC variando {{ premissas.cac_incerteza|pct(0) }} para cima e para baixo, o retorno por real é de {{ d.canal_melhor.ltv_cac_incerteza.est|n(1) }}× em {{ d.canal_melhor.rotulo }} (IC {{ d.canal_melhor.ltv_cac_incerteza.lo|n(1) }} a {{ d.canal_melhor.ltv_cac_incerteza.hi|n(1) }})
+          e {{ d.canal_midia.ltv_cac_incerteza.est|n(1) }}× em {{ d.canal_midia.rotulo }} (IC {{ d.canal_midia.ltv_cac_incerteza.lo|n(1) }} a {{ d.canal_midia.ltv_cac_incerteza.hi|n(1) }}); {{ d.canal_melhor.rotulo }} é o melhor em {{ d.canal_melhor.prob_melhor_ltv_cac|pct(0) }} das réplicas.
+          É uma vantagem moderada, e some se o CAC de {{ d.canal_midia.rotulo }} cair {{ d.empate_midia.queda|pct(0) }} ({{ d.empate_midia.cac_empate|brl }}).
+        </li>
+      </ol>
+      <div class="resumo-decisao">
+        <h4>Decisão <span class="tag-proj">projetado</span></h4>
+        <p>
+          Mover verba de {{ d.real_origem.rotulo }} para {{ d.real_destino.rotulo }} <strong>em etapas</strong>, enquanto o CAC marginal de {{ d.real_destino.rotulo }} ficar abaixo de {{ d.real.premio_equilibrio|pct(0) }} acima do médio
+          (ponto de equilíbrio; IC {{ d.real.premio_equilibrio_lo|pct(0) }} a {{ d.real.premio_equilibrio_hi|pct(0) }}). Para cada {{ premissas.verba_exemplo|brl_mi }} movidos, o valor líquido é de {{ d.real.linhas[0].ganho|brl_mi }}
+          (IC {{ d.real.linhas[0].lo|brl_mi }} a {{ d.real.linhas[0].hi|brl_mi }}) se o CAC marginal for igual ao médio, e de {{ d.real.linhas[2].ganho|brl_mi }} (IC {{ d.real.linhas[2].lo|brl_mi }} a {{ d.real.linhas[2].hi|brl_mi }}) se for {{ d.real.linhas[2].premio|pct(0) }} maior.
+          A ação de retenção no mês 3 só se paga se evitar mais de {{ acao_mes3.projetado.efetividade_equilibrio|pct(0) }} do excesso de cancelamentos e <strong>não deve ser escalada antes de um teste</strong>:
+          provar {{ d.teste.linhas[1].efetividade|pct(0) }} de efetividade exige cerca de {{ d.teste.linhas[1].n_por_braco|int }} assinantes por braço, mais do que uma campanha de Black Friday inteira ({{ d.teste.vivos_mes3_coorte|int }} chegam ao mês 3).
+        </p>
+      </div>
+    </div>
   </section>
 
   <div class="grid">
@@ -249,7 +288,10 @@
             <li><a href="#secao-e">E — Valor por canal e decisão</a></li>
             <li><a href="#secao-f">F — O que poderia ter dado errado</a></li>
             <li><a href="#secao-g">G — Riscos competitivos</a></li>
-            <li><a href="#secao-h">H — Limites honestos</a></li>
+            <li><a href="#secao-h">H — Operação: MRR e NRR</a></li>
+            <li><a href="#secao-i">I — Quem tratar</a></li>
+            <li><a href="#secao-j">J — Dataset público e robustez</a></li>
+            <li><a href="#secao-k">K — Limites honestos</a></li>
           </ul>
         </nav>
       </div>
@@ -304,8 +346,8 @@
           "censurado" como "cancelou" erra. O Kaplan-Meier usa cada assinante pelo tempo em que de fato foi observado.
         </p>
         <div class="caveat">
-          O desenho tem uma consequência importante: com entradas até o corte, <strong>ninguém tem 24 meses completos</strong>.
-          M24 só poderia ser projetado, e por isso fica vazio nas tabelas de medição.
+          A janela de entrada cobre {{ premissas.n_safras * premissas.meses_por_safra }} meses para que M24 seja <strong>observável</strong>: {{ dados.n_com_24m_possiveis|int }} assinantes têm 24 meses completos possíveis
+          (M24 vem preenchido em {{ ingenuo_vs_km.n_celulas_m24_preenchidas }} das {{ premissas.n_safras }} safras). Onde a safra não tem tempo de observação, a célula continua vazia, nunca preenchida.
         </div>
       </section>
 
@@ -468,8 +510,9 @@
           (limiar de Bonferroni). C-index do modelo ingênuo: {{ cox.ingenuo.cindex|n(3) }}.
         </p>
         <div class="caveat">
-          O teste "padrão" (tendência em rank do tempo) <strong>não pega o penhasco</strong> da promoção (p {{ d.ph_i.oferta_bf.p_rank|p }}): o efeito sobe e depois desce, sem tendência
-          linear. O teste <strong>por faixas de idade</strong> pega (p {{ d.ph_i.oferta_bf.p_faixas|p }}). Vale olhar o gráfico, não só o p-valor.
+          {% if d.ph_i.oferta_bf.p_rank >= premissas.alpha / cox.ingenuo.n_covs %}O teste "padrão" (tendência em rank do tempo) <strong>não pega o penhasco</strong> da promoção (p {{ d.ph_i.oferta_bf.p_rank|p }}): o efeito sobe e depois desce, sem tendência
+          linear. O teste <strong>por faixas de idade</strong> pega (p {{ d.ph_i.oferta_bf.p_faixas|p }}).{% else %}O teste "padrão" (tendência em rank do tempo) pega o penhasco da promoção, mas <strong>com muito menos força</strong> (p {{ d.ph_i.oferta_bf.p_rank|p }}):
+          o efeito sobe e depois desce, sem tendência linear. O teste <strong>por faixas de idade</strong>, que deixa o efeito mudar por faixa, é muito mais sensível (p {{ d.ph_i.oferta_bf.p_faixas|p }}).{% endif %} Vale olhar o gráfico, não só o p-valor.
         </div>
         <figure>
           <img src="{{ img.schoenfeld }}" alt="Efeito local por faixa de idade para a promoção e para o plano anual">
@@ -537,15 +580,20 @@
       <!-- ============================ E ============================ -->
       <section id="secao-e">
         <div class="section-kicker">Seção E</div>
-        <h2>Valor por canal: permanência, LTV, CAC e a decisão</h2>
+        <h2>Valor por canal: permanência, LTV de contribuição, CAC e a decisão</h2>
         <p>
           Duas medidas de permanência por canal: o <strong>RMST</strong> (tempo médio restrito: meses esperados de assinatura nos primeiros {{ premissas.horizonte_ltv }}) e o
-          <strong>LTV descontado</strong> em {{ premissas.horizonte_ltv }} meses (ARPU × sobrevivência × desconto de {{ premissas.taxa_desconto_anual|pct(0) }} ao ano), contra o <strong>CAC</strong> por canal e o payback.
-          Intervalos de 95% por bootstrap de assinantes ({{ valor.n_boot|int }} réplicas).
+          <strong>LTV de contribuição</strong> em {{ premissas.horizonte_ltv }} meses: preço de tabela vigente (com o reajuste de jul/26) × sobrevivência × desconto de {{ premissas.taxa_desconto_anual|pct(0) }} ao ano × margem de {{ premissas.margem.por_real|pct(1) }} por real de receita
+          ({{ premissas.margem.contribuicao|pct(0) }} de margem de contribuição menos {{ premissas.margem.cobranca|pct(1) }} de custo de cobrança), contra o <strong>CAC</strong> por canal e o payback.
+          Intervalos de 95% por bootstrap de assinantes ({{ valor.n_boot|int }} réplicas); no LTV/CAC o CAC também varia {{ premissas.cac_incerteza|pct(0) }} para cima e para baixo.
           <span class="tag-med">medido</span> = parte coberta pelo Kaplan-Meier; <span class="tag-proj">projetado</span> = tudo que depende de premissa ou de extrapolação.
         </p>
+        <div class="caveat">
+          <strong>O CAC, a margem e o desconto são premissas minhas.</strong> Escolhi os CACs para que a pergunta "CAC ou permanência?" tivesse resposta não trivial, então a conclusão de canal depende deles.
+          Por isso o relatório mostra o ranking que <em>não</em> usa o CAC, o CAC com incerteza e o ponto em que a conclusão vira.
+        </div>
         <div class="table-wrap"><table>
-          <tr><th>Canal</th><th class="num">CAC</th><th class="num">RMST {{ premissas.horizonte_ltv }}m</th><th class="num">LTV {{ premissas.horizonte_ltv }}m</th><th class="num">% medido</th><th class="num">LTV/CAC</th><th class="num">Payback</th></tr>
+          <tr><th>Canal</th><th class="num">CAC</th><th class="num">RMST {{ premissas.horizonte_ltv }}m</th><th class="num">LTV de contribuição {{ premissas.horizonte_ltv }}m</th><th class="num">% medido</th><th class="num">LTV/CAC (IC: bootstrap + CAC incerto)</th><th class="num">Payback</th></tr>
           {% for c in valor.canais %}
           <tr>
             <td>{{ c.rotulo }}{% if not c.escalavel %} <span class="pill warn">próprio</span>{% endif %}</td>
@@ -553,18 +601,21 @@
             <td class="num">{{ c.rmst.est|n(1) }} <span style="color:var(--ink-faint)">({{ c.rmst.lo|n(1) }}–{{ c.rmst.hi|n(1) }})</span></td>
             <td class="num">{{ c.ltv.est|brl }} <span style="color:var(--ink-faint)">({{ c.ltv.lo|brl }}–{{ c.ltv.hi|brl }})</span></td>
             <td class="num">{{ c.pct_ltv_medido|pct(0) }}</td>
-            <td class="num"><strong>{{ c.ltv_cac.est|n(1) }}×</strong> <span style="color:var(--ink-faint)">({{ c.ltv_cac.lo|n(1) }}–{{ c.ltv_cac.hi|n(1) }})</span></td>
+            <td class="num">{% if c.escalavel %}<strong>{{ c.ltv_cac.est|n(1) }}×</strong> <span style="color:var(--ink-faint)">({{ c.ltv_cac_incerteza.lo|n(1) }}–{{ c.ltv_cac_incerteza.hi|n(1) }})</span>{% else %}<span class="vazio">n/c</span>{% endif %}</td>
             <td class="num">{{ c.payback.est|n(0) }} mens.</td>
           </tr>
           {% endfor %}
         </table></div>
+        <p style="font-size:0.88rem;color:var(--ink-muted);">
+          <strong>n/c</strong> = não comparável: orgânico e e-mail/CRM são canais próprios, de capacidade limitada e custo alocado, então o LTV/CAC deles não pode ser lido ao lado do dos canais pagos e eles ficam fora da realocação.
+        </p>
         <figure>
-          <img src="{{ img.valor }}" alt="RMST e LTV descontado por canal contra o CAC">
-          <figcaption>Permanência (RMST) e LTV descontado por canal, com o CAC em traço. O número em cima das barras é o LTV/CAC.</figcaption>
+          <img src="{{ img.valor }}" alt="RMST e LTV de contribuição por canal contra o CAC">
+          <figcaption>Permanência (RMST) e LTV de contribuição por canal, com o CAC em traço. O número em cima das barras é o LTV/CAC (n/c nos canais próprios).</figcaption>
         </figure>
         <figure>
-          <img src="{{ img.payback }}" alt="Receita acumulada esperada por canal contra o CAC">
-          <figcaption>Payback: a receita descontada esperada por assinante adquirido cruza o CAC (pontilhado) entre {{ d.payback_min|n(0) }} e {{ d.payback_max|n(0) }} mensalidades.</figcaption>
+          <img src="{{ img.payback }}" alt="Contribuição acumulada esperada por canal contra o CAC">
+          <figcaption>Payback: a contribuição descontada esperada por assinante adquirido cruza o CAC (pontilhado) entre {{ d.payback_min|n(0) }} e {{ d.payback_max|n(0) }} mensalidades.</figcaption>
         </figure>
 
         <div class="decisao">
@@ -573,17 +624,30 @@
             {% if d.inverte %}O ranking <strong>só por CAC</strong> favorece {{ d.rank_cac[0].rotulo }} (o canal pago mais barato, {{ d.rank_cac[0].cac|brl }}).
             Quando se conta a permanência, o ranking por LTV/CAC muda: {% for c in d.rank_ltv_cac %}{{ c.rotulo }} ({{ c.ltv_cac.est|n(1) }}×){{ " > " if not loop.last else "." }}{% endfor %}
             {% else %}O ranking por CAC e o ranking por LTV/CAC coincidem: {% for c in d.rank_ltv_cac %}{{ c.rotulo }} ({{ c.ltv_cac.est|n(1) }}×){{ " > " if not loop.last else "." }}{% endfor %}{% endif %}
+            O ranking <strong>só por permanência</strong> (LTV), que não usa o CAC: {% for c in d.rank_ltv %}{{ c.rotulo }}{{ " > " if not loop.last else "." }}{% endfor %}
           </p>
           <p>
-            <strong>Ação:</strong> priorizar {{ d.canal_melhor.rotulo }} e reduzir {{ d.canal_pior.rotulo }}. Para cada R$ {{ premissas.verba_exemplo|int }} movidos de {{ d.canal_pior.rotulo }}
-            para {{ d.canal_melhor.rotulo }}, o valor líquido (LTV − CAC) sobe cerca de <strong>{{ decisao_verba.ganho_realocar_pior_para_melhor|brl_mi }}</strong>; vindo de
-            {{ d.canal_midia.rotulo }}, cerca de {{ decisao_verba.ganho_realocar_midia_paga_para_melhor|brl_mi }}. {{ d.canal_melhor.rotulo }} tem
-            {{ d.canal_melhor.prob_melhor_ltv_cac|pct(0) }} de chance de ser o melhor em LTV/CAC entre os canais com verba, nas réplicas do bootstrap.
+            <strong>Quão firme é?</strong> {{ d.canal_melhor.rotulo }} é o melhor em LTV/CAC em {{ d.canal_melhor.prob_melhor_ltv_cac|pct(0) }} das réplicas quando o CAC varia {{ premissas.cac_incerteza|pct(0) }} (e em {{ d.canal_melhor.prob_melhor_ltv_cac_cac_fixo|pct(0) }} com o CAC fixo na premissa).
+            O CAC de {{ d.canal_midia.rotulo }} teria de cair {{ d.empate_midia.queda|pct(0) }}, para {{ d.empate_midia.cac_empate|brl }}, para empatar; e {{ d.canal_melhor.rotulo }} perde a liderança se o CAC dele passar de {{ d.sens.cac_melhor_perde_lideranca|brl }} (alta de {{ d.sens.alta_cac_melhor_perde|pct(0) }}).
           </p>
+          <p>
+            <strong>Ação:</strong> mover verba de {{ d.real_origem.rotulo }} para {{ d.real_destino.rotulo }} em etapas, acompanhando o CAC marginal. O ganho de {{ premissas.verba_exemplo|brl_mi }} movidos depende do CAC marginal de {{ d.real_destino.rotulo }} (indicação satura primeiro):
+          </p>
+          <div class="table-wrap"><table>
+            <tr><th>CAC marginal acima do médio</th><th class="num">Valor líquido (estimativa)</th><th class="num">IC 95%</th><th class="num">Chance de ser positivo</th></tr>
+            {% for l in d.real.linhas %}
+            <tr><td>{{ l.premio|pct(0) }}</td><td class="num"><strong>{{ l.ganho|brl_mi }}</strong></td><td class="num">{{ l.lo|brl_mi }} a {{ l.hi|brl_mi }}</td><td class="num">{{ l.prob_positivo|pct(0) }}</td></tr>
+            {% endfor %}
+          </table></div>
           <p style="font-size:0.9rem;color:var(--ink-muted);margin-bottom:0;">
-            Premissas: CAC médio = marginal (não vale quando o canal satura, e indicação satura primeiro); LTV sobre receita, sem margem; canais próprios (orgânico e e-mail/CRM) fora da realocação.
+            O ganho se anula quando o CAC marginal de {{ d.real_destino.rotulo }} chega a {{ d.real.premio_equilibrio|pct(0) }} acima do médio (IC {{ d.real.premio_equilibrio_lo|pct(0) }} a {{ d.real.premio_equilibrio_hi|pct(0) }}).
+            Premissas: margem, CAC e desconto da Seção E; origem e destino da realocação definidos pelo retorno por real; canais próprios fora da conta.
           </p>
         </div>
+        <figure>
+          <img src="{{ img.realocacao }}" alt="Ganho da realocação por cenário de CAC marginal e retorno por real com CAC incerto">
+          <figcaption>À esquerda, o ganho projetado da realocação conforme o CAC marginal do canal de destino. À direita, o retorno por real com o CAC incerto e a chance de cada canal ser o melhor.</figcaption>
+        </figure>
         <div class="table-wrap"><table>
           <tr><th>Canal com verba</th><th class="num">CAC</th><th class="num">Assinantes por R$ {{ premissas.verba_exemplo|int }}</th><th class="num">LTV total</th><th class="num">Valor líquido</th><th class="num">Retorno por real</th></tr>
           {% for l in decisao_verba.linhas if l.escalavel %}
@@ -693,15 +757,201 @@
       <!-- ============================ H ============================ -->
       <section id="secao-h">
         <div class="section-kicker">Seção H</div>
+        <h2>Operação: MRR, retenção líquida de receita, reativação e trial</h2>
+        <p>
+          A análise de sobrevivência olha o <strong>primeiro</strong> período de cada assinante e ignora reativações e trocas de plano. Esta seção mostra o que essas simplificações escondem, com as métricas de quem gere assinatura no dia a dia.
+          O MRR de um assinante é o preço que ele pagou no mês (com a promoção e o reajuste); o plano anual conta pelo preço mensal-equivalente.
+        </p>
+        <div class="caveat">
+          As taxas de reativação, troca de plano e conversão de trial desta seção são <strong>premissas fictícias</strong> (em <code>config.py</code>), geradas com fluxos aleatórios independentes: elas não mudam nenhum número das seções A a G.
+          O objetivo aqui é a mecânica de medir (ponte de MRR, NRR), não descobrir taxas do mundo real.
+        </div>
+        <h3>Ponte de MRR nos últimos 12 meses</h3>
+        <div class="table-wrap"><table>
+          <tr><th>Componente</th><th class="num">R$ de MRR</th></tr>
+          <tr><td>MRR no início</td><td class="num">{{ operacao.ultimos_12m.inicial|brl }}</td></tr>
+          <tr><td>+ Novos assinantes</td><td class="num">{{ operacao.ultimos_12m.novo|brl }}</td></tr>
+          <tr><td>+ Reativações</td><td class="num">{{ operacao.ultimos_12m.reativacao|brl }}</td></tr>
+          <tr><td>+ Upgrade de plano</td><td class="num">{{ operacao.ultimos_12m.exp_upgrade|brl }}</td></tr>
+          <tr><td>+ Fim da promoção (preço cheio)</td><td class="num">{{ operacao.ultimos_12m.exp_fim_promo|brl }}</td></tr>
+          <tr><td>+ Reajuste de preço</td><td class="num">{{ operacao.ultimos_12m.exp_reajuste|brl }}</td></tr>
+          <tr><td>− Downgrade de plano</td><td class="num">{{ operacao.ultimos_12m.contracao|brl }}</td></tr>
+          <tr><td>− Churn</td><td class="num">{{ operacao.ultimos_12m.churn|brl }}</td></tr>
+          <tr><td><strong>MRR no fim</strong></td><td class="num"><strong>{{ operacao.ultimos_12m.final|brl }}</strong> ({{ operacao.ultimos_12m.crescimento|pct(0) }} em 12 meses)</td></tr>
+        </table></div>
+        <p>
+          O churn mensal médio é de {{ operacao.ultimos_12m.churn_logo_mensal_medio|pct(1) }} dos assinantes e {{ operacao.ultimos_12m.churn_mrr_mensal_medio|pct(1) }} do MRR. A ponte fecha em todos os meses (um teste confere).
+          O MRR final é de {{ operacao.mrr_final|brl }} com {{ operacao.ativos_final|int }} assinantes ativos (ARPU de {{ operacao.arpu_final|brl(2) }}).
+        </p>
+        <figure>
+          <img src="{{ img.mrr }}" alt="Ponte de MRR por mês e retenção líquida de receita por canal">
+          <figcaption>À esquerda, o que entra e o que sai do MRR a cada mês (barras) e o MRR no fim do mês (linha). À direita, a retenção líquida de receita em {{ operacao.premissas.janela_nrr_meses }} meses por canal (barras, IC 95% por bootstrap) e a retenção bruta (losango).</figcaption>
+        </figure>
+
+        <h3>Retenção líquida de receita (NRR)</h3>
+        <p>
+          Entre os {{ operacao.retencao_receita.global.n|int }} assinantes ativos em {{ operacao.retencao_receita.mes_base|mes_ano }}, o MRR deles em {{ operacao.retencao_receita.mes_fim|mes_ano }} é de
+          <strong>{{ d.nrr.nrr|pct(1) }}</strong> do que era (NRR, IC {{ d.nrr.nrr_lo|pct(1) }} a {{ d.nrr.nrr_hi|pct(1) }}); sem a expansão (upgrade, fim de promoção e reajuste), a retenção bruta (GRR) é de {{ d.nrr.grr|pct(1) }} (IC {{ d.nrr.grr_lo|pct(1) }} a {{ d.nrr.grr_hi|pct(1) }}).
+          A expansão recupera {{ d.nrr.expansao|pct(1) }} do MRR da base, mas não o que o churn tirou.
+        </p>
+        <div class="table-wrap"><table>
+          <tr><th>Canal</th><th class="num">Assinantes na base</th><th class="num">NRR</th><th class="num">IC 95%</th><th class="num">GRR</th></tr>
+          {% for c, v in d.nrr_canais %}
+          <tr><td>{{ d.rot.canal[c] }}</td><td class="num">{{ v.n|int }}</td><td class="num"><strong>{{ v.nrr|pct(1) }}</strong></td><td class="num">{{ v.nrr_lo|pct(1) }} a {{ v.nrr_hi|pct(1) }}</td><td class="num">{{ v.grr|pct(1) }}</td></tr>
+          {% endfor %}
+        </table></div>
+
+        <h3>Reativação e troca de plano</h3>
+        <ul>
+          <li><strong>Reativação:</strong> {{ operacao.reativacao.pct_cancelados_que_voltaram|pct(1) }} dos cancelamentos voltam. Em até 12 meses, por causa: {% for k, v in operacao.reativacao.por_causa.items() %}{{ d.rot.causa[k] }} {{ v.taxa|pct(0) }}{{ "; " if not loop.last else "." }}{% endfor %}
+            O cancelamento por falha de pagamento é o que mais volta, e tem alavanca própria: nova tentativa de cobrança e aviso antes do vencimento.</li>
+          <li><strong>Efeito na retenção:</strong> contando quem volta, a retenção em M12 sobe de {{ operacao.reativacao.retencao_m12_primeiro_periodo|pct(1) }} (só o primeiro período, como na análise de sobrevivência) para {{ operacao.reativacao.retencao_m12_com_reativacao|pct(1) }}
+            (+{{ operacao.reativacao.ganho_retencao_m12|ppa(1) }}), entre {{ operacao.reativacao.n_elegiveis_m12|int }} assinantes com 12 meses possíveis.</li>
+          <li><strong>Troca de plano:</strong> {{ operacao.trocas_plano.pct_assinantes|pct(1) }} dos assinantes trocam de plano ({{ operacao.trocas_plano.n_trocas|int }} trocas).</li>
+        </ul>
+
+        <h3>Conversão de trial por canal <span class="tag-proj">premissa</span></h3>
+        <div class="table-wrap"><table>
+          <tr><th>Canal</th><th class="num">Trials</th><th class="num">Convertidos</th><th class="num">Conversão</th><th class="num">IC 95% (Wilson)</th><th class="num">CAC por trial</th></tr>
+          {% for t in d.trial_canais %}
+          <tr><td>{{ t.rotulo }}</td><td class="num">{{ t.trials|int }}</td><td class="num">{{ t.convertidos|int }}</td><td class="num"><strong>{{ t.conversao|pct(1) }}</strong></td><td class="num">{{ t.lo|pct(1) }} a {{ t.hi|pct(1) }}</td><td class="num">{{ t.cac_por_trial|brl(2) }}</td></tr>
+          {% endfor %}
+        </table></div>
+        <p style="font-size:0.88rem;color:var(--ink-muted);">
+          Os trials que não converteram não existem no dataset: são sorteados (binomial negativa) a partir da conversão assumida por canal, para a conversão observada ter intervalo. Conversão geral: {{ operacao.trial.global.conversao|pct(1) }}.
+        </p>
+      </section>
+
+      <!-- ============================ I ============================ -->
+      <section id="secao-i">
+        <div class="section-kicker">Seção I</div>
+        <h2>Quem tratar: validação fora do tempo, score e teste da ação</h2>
+        <h3>1. Validação fora do tempo</h3>
+        <p>
+          O modelo de score (Cox estratificado por plano, com as covariáveis conhecidas na assinatura) foi ajustado <strong>só com o que se sabia em {{ d.fora.t0|data }}</strong>, com o seguimento truncado nessa data, e avaliado em
+          {{ d.fora.n_teste|int }} assinantes que entraram <strong>depois</strong>. O desfecho deles o modelo nunca viu, e o período de teste traz o reajuste de preço, o Passe Copa e as eleições, que o modelo não conhecia.
+        </p>
+        <div class="table-wrap"><table>
+          <tr><th>C-index em {{ d.fora.horizonte }} meses</th><th class="num">Valor</th></tr>
+          <tr><td>Treino (até {{ d.fora.t0|data }})</td><td class="num">{{ d.fora.cindex.treino|n(3) }}</td></tr>
+          <tr><td><strong>Teste (quem entrou depois)</strong></td><td class="num"><strong>{{ d.fora.cindex.teste|n(3) }}</strong></td></tr>
+          <tr><td>Teto: risco individual <em>verdadeiro</em> (só existe porque os dados são sintéticos)</td><td class="num">{{ d.fora.cindex.teto_verdadeiro|n(3) }}</td></tr>
+        </table></div>
+        <p>
+          O teto é o melhor que <em>qualquer</em> modelo faria nesses dados, porque o tempo de vida tem muito acaso: um C-index moderado é o esperado, não uma falha. O quinto de maior risco concentra
+          {{ d.fora.captura.captura|pct(0) }} dos cancelamentos em {{ d.fora.horizonte }} meses (lift de {{ d.fora.captura.lift|n(2) }}×, com taxa de {{ d.fora.captura.taxa_topo|pct(0) }} contra {{ d.fora.captura.taxa_resto|pct(0) }} no resto).
+        </p>
+        <figure>
+          <img src="{{ img.fora_do_tempo }}" alt="Calibração fora do tempo por quintil de risco e C-index de treino, teste e teto">
+          <figcaption>À esquerda, a probabilidade de cancelar em {{ d.fora.horizonte }} meses prevista pelo modelo contra a observada (Kaplan-Meier) em quem entrou depois; a diagonal é a calibração perfeita. À direita, o C-index.</figcaption>
+        </figure>
+        <div class="caveat">
+          <strong>O modelo subestima o cancelamento no teste</strong> ({% for a in d.fora.agregado %}M{{ a.h }}: previsto {{ a.previsto|pct(1) }}, observado {{ a.observado|pct(1) }}{{ "; " if not loop.last else "" }}{% endfor %}), porque não conhecia o reajuste de preço de jul/26.
+          O <em>ranking</em> de risco se mantém; os <em>níveis</em> exigem reajuste periódico do modelo. O score de cada assinante (probabilidade de cancelar em {{ d.fora.horizonte }} meses e decil) é gravado em <code>data/score_risco.csv</code> por <code>run_all.py</code>.
+        </div>
+
+        <h3>2. Quem tratar no mês 3</h3>
+        <p>
+          Entre os {{ d.alvo.n_bf_mes3|int }} assinantes da Black Friday que chegam ao mês 3, separados em terços pelo score, o excesso de cancelamento atribuível ao penhasco é maior no terço de maior risco
+          ({{ d.alvo.razao_excesso_alto_baixo|n(1) }}× o do terço de menor risco).
+        </p>
+        <div class="table-wrap"><table>
+          <tr><th>Terço de risco</th><th class="num">n</th><th class="num">Cancela no mês 3–4</th><th class="num">Excesso atribuível</th><th class="num">Líquido por tratado <span class="tag-proj">projetado</span></th><th class="num">Efetividade de equilíbrio</th></tr>
+          {% for f in d.alvo.faixas %}
+          <tr><td>{{ f.faixa|cap }}</td><td class="num">{{ f.n|int }}</td><td class="num">{{ f.q_observado|pct(1) }}</td><td class="num">{{ f.excesso|ppa(1) }}</td><td class="num">{{ f.liquido_por_tratado|brl(2) }}</td><td class="num">{{ f.efetividade_equilibrio|pct(0) }}</td></tr>
+          {% endfor %}
+        </table></div>
+        <p>
+          Tratar todos rende {{ d.alvo.liquido_tratar_todos|brl }} líquidos; tratar só o terço de maior risco, {{ d.alvo.liquido_tratar_maior_risco|brl }} (projeção, com {{ d.alvo.efetividade_base|pct(0) }} de efetividade assumida e {{ d.alvo.custo_por_assinante|brl }} por assinante).
+          Com essa efetividade, vale tratar todos; a priorização por risco só importa se a capacidade de contato for limitada.
+        </p>
+
+        <h3>3. Como provar que a ação funciona (teste A/B)</h3>
+        <p>
+          Desfecho primário: {{ d.teste.desfecho_primario }}. Randomização: {{ d.teste.randomizacao }}. Nível de {{ d.teste.alpha|pct(0) }} e poder de {{ d.teste.poder|pct(0) }}.
+        </p>
+        <div class="table-wrap"><table>
+          <tr><th>Efetividade a detectar</th><th class="num">Cancelamento: controle → tratamento</th><th class="num">n por braço</th><th class="num">Campanhas de Black Friday necessárias</th></tr>
+          {% for l in d.teste.linhas %}
+          <tr><td>{{ l.efetividade|pct(0) }} do excesso evitado</td><td class="num">{{ l.p_controle|pct(1) }} → {{ l.p_tratamento|pct(1) }}</td><td class="num">{{ l.n_por_braco|int }}</td><td class="num">{{ l.campanhas_necessarias|n(1) }}</td></tr>
+          {% endfor %}
+        </table></div>
+        <div class="decisao">
+          <h4>O que isso significa</h4>
+          <p style="margin-bottom:0;">
+            Com uma única campanha ({{ d.teste.vivos_mes3_coorte|int }} assinantes no mês 3), o teste só detectaria uma efetividade de {{ d.teste.efetividade_minima_detectavel|pct(0) }} do excesso. <strong>Não dá para provar a ação numa Black Friday só.</strong>
+            É preciso rodar o teste em todas as saídas de promoção do ano, ou aceitar um piloto com monitoramento e decisão por faixa de efetividade. Até lá, o valor da ação é projeção.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================ J ============================ -->
+      <section id="secao-j">
+        <div class="section-kicker">Seção J</div>
+        <h2>Fora do roteiro: dataset público e gerador diferente do modelo</h2>
+        <p>
+          O resultado das seções A a G tem uma circularidade: os efeitos foram plantados e o Cox corrigido espelha a estrutura do gerador (promoção por períodos, plano como estrato). Recuperar os efeitos mostra que o método funciona, não que serve em dado real.
+          Duas verificações que não dependem de o modelo espelhar o gerador:
+        </p>
+        <h3>1. O mesmo pipeline num dataset público de churn</h3>
+        <p>
+          Amostra pública de churn de telecom publicada pela IBM (Apache-2.0; origem, licença e SHA-256 em <code>data_externo/LEIA-ME.md</code>), cujo processo gerador <strong>eu não plantei</strong>.
+          É dado de exemplo, não de operação real, e é de telecom, não de jornal: os números abaixo não dizem nada sobre assinatura de notícias. São {{ d.ext.dados.n|int }} clientes, com {{ d.ext.dados.pct_eventos|pct(1) }} de cancelamentos.
+        </p>
+        <div class="table-wrap"><table>
+          <tr><th>Contrato</th><th class="num">Clientes</th><th class="num">KM M12</th><th class="num">KM M36</th><th class="num">KM M60</th></tr>
+          {% for g in d.ext.contrato.grupos %}
+          <tr><td>{{ g.rotulo }}</td><td class="num">{{ g.n|int }}</td>
+            {% for h in ["m12", "m36", "m60"] %}{% set p = g.horizontes[h] %}<td class="num">{% if p.ok %}{{ p.valor|pct(1) }} <span style="color:var(--ink-faint)">({{ p.lo|pct(1) }}–{{ p.hi|pct(1) }})</span>{% else %}<span class="vazio">—</span>{% endif %}</td>{% endfor %}
+          </tr>
+          {% endfor %}
+        </table></div>
+        <figure>
+          <img src="{{ img.externo }}" alt="Kaplan-Meier por tipo de contrato e taxa mensal de cancelamento por faixa de meses de contrato">
+          <figcaption>À esquerda, Kaplan-Meier por tipo de contrato com IC 95%. À direita, a taxa mensal de cancelamento por faixa de meses de contrato (escala log): o risco do contrato mensal cai depois do primeiro mês e a diferença entre contratos não é constante.</figcaption>
+        </figure>
+        <ul>
+          <li><strong>O primeiro mês pesa muito:</strong> {{ d.ext.primeiro_mes.pct_de_todos_cancelamentos|pct(0) }} de todos os cancelamentos acontecem no 1º mês de contrato (risco de {{ d.ext.primeiro_mes.taxa|pct(1) }} no mês, e {{ d.ext.primeiro_mes.taxa_contrato_mensal|pct(1) }} no contrato mensal).</li>
+          <li><strong>Contrato:</strong> o log-rank separa os três tipos (p {{ d.ext.contrato.logrank.p|p }}; {{ d.ext.contrato.pares|selectattr("significativo_holm")|list|length }} de {{ d.ext.contrato.pares|length }} pares significativos com Holm). Boa parte do efeito é mecânica (contrato com fidelidade), não comportamento.</li>
+          <li><strong>Riscos proporcionais:</strong> o Cox ingênuo viola a premissa em {{ d.ext.cox.ingenuo.n_viola }} de {{ d.ext.cox.ingenuo.n_covs }} covariáveis (global p {{ d.ext.cox.ingenuo.ph_global.p|p }}).
+            <strong>A correção que funcionou no sintético não resolve aqui:</strong> estratificado por contrato, o teste ainda rejeita {{ d.ext.cox.corrigido.n_viola }} de {{ d.ext.cox.corrigido.n_covs }} covariáveis (global p {{ d.ext.cox.corrigido.ph_global.p|p }}).
+            Com {{ d.ext.dados.n_eventos|int }} eventos o teste tem muito poder; o próximo passo seria efeitos que variam no tempo, não um HR único.</li>
+          <li><strong>Cuidado com a leitura dos coeficientes:</strong> fibra óptica tem HR {{ d.ext_cor["internet_fibra"].hr|hr }} (IC {{ d.ext_cor["internet_fibra"].lo|hr }} a {{ d.ext_cor["internet_fibra"].hi|hr }}) contra DSL e cheque eletrônico HR {{ d.ext_cor["cheque_eletronico"].hr|hr }}, mas a cobrança mensal sai com HR {{ d.ext_cor["cobranca_z"].hr|hr }}:
+            isso <em>não</em> quer dizer que preço alto retém. A cobrança é colinear com o tipo de internet, e o coeficiente só faz sentido junto com os outros.</li>
+          <li><strong>A definição do evento importa:</strong> a documentação do arquivo sugere que o cancelamento é "no último mês". Se essa leitura (tábua de período) fosse a verdadeira, a retenção em M12 seria {{ d.ext.leitura_periodo.m12|pct(1) }}, absurda para uma base com clientes de até {{ d.ext.dados.duracao_max|int }} meses.
+            Só a leitura usual (<code>tenure</code> como duração) é coerente, mas o arquivo não resolve a dúvida.</li>
+        </ul>
+
+        <h3>2. O mesmo modelo quando o gerador não o espelha</h3>
+        <p>
+          O Cox corrigido foi ajustado em dados gerados de três jeitos ({{ robustez_mc.n_replicas|int }} réplicas de {{ robustez_mc.n|int }} assinantes cada): o gerador oficial (referência), um com <strong>heterogeneidade não observada</strong> entre assinantes
+          (cada um tem um risco multiplicativo aleatório que o modelo não vê) e um com o <strong>penhasco fora do mês</strong> que o modelo supõe.
+        </p>
+        <div class="table-wrap"><table>
+          <tr><th>Variante</th><th class="num">Cobertura dos IC 95%</th><th class="num">Maior viés relativo</th><th>Efeito mais distorcido</th></tr>
+          {% for v in robustez_mc.variantes %}
+          <tr><td>{{ v.descricao }}</td><td class="num">{{ v.cobertura_total|pct(0) }}</td><td class="num">{{ v.vies_abs_max|pct(0) }}</td><td>{{ d.rob_pior[v.id].rotulo }}: {{ d.rob_pior[v.id].media_hr|hr }} estimado contra {{ d.rob_pior[v.id].verdade|hr }} plantado</td></tr>
+          {% endfor %}
+        </table></div>
+        <div class="caveat">
+          O modelo corrigido <strong>depende de saber onde o penhasco está</strong>: com o efeito fora do mês 3–4 que ele supõe, a cobertura cai de {{ d.rob.oficial.cobertura_total|pct(0) }} para {{ d.rob.penhasco_deslocado.cobertura_total|pct(0) }}.
+          É um limite do método, não um detalhe: um modelo que acerta no gerador que o espelha pode errar quando a realidade não coincide com a especificação.
+        </div>
+      </section>
+
+      <!-- ============================ K ============================ -->
+      <section id="secao-k">
+        <div class="section-kicker">Seção K</div>
         <h2>Limites honestos</h2>
         <ul>
-          <li><strong>Dados sintéticos e efeitos plantados.</strong> O projeto mostra que o método recupera o efeito certo (tabela da Seção D), não que mídia paga seja pior ou que a Black Friday tenha um penhasco no mundo real.</li>
-          <li><strong>M24 não é observável</strong> nesta janela; qualquer número de M24 seria projeção.</li>
-          <li><strong>ARPU, CAC, taxa de desconto, custo e efetividade da ação do mês 3 são premissas minhas</strong> (em <code>config.py</code> e <code>DECISIONS.md</code>). Não há margem de contribuição e o reajuste de preço não entra no ARPU.</li>
-          <li><strong>CAC médio não é CAC marginal:</strong> a realocação supõe escala linear; canais como indicação saturam.</li>
+          <li><strong>Dados sintéticos e efeitos plantados.</strong> O projeto mostra que o método recupera o efeito certo (tabela da Seção D) e como ele se comporta quando o gerador é diferente (Seção J), não que mídia paga seja pior ou que a Black Friday tenha um penhasco no mundo real. O dataset público é dado de exemplo de outro setor.</li>
+          <li><strong>ARPU, margem, CAC, taxa de desconto, custo e efetividade da ação do mês 3 são premissas minhas</strong> (em <code>config.py</code> e <code>DECISIONS.md</code>). <strong>O CAC foi escolhido para a pergunta "CAC ou permanência?" ter resposta não trivial</strong>: por isso a conclusão de canal aparece com CAC incerto e a realocação como faixa de cenários.</li>
+          <li><strong>CAC médio não é CAC marginal:</strong> canais como indicação saturam; o ponto de equilíbrio da realocação está na Seção E.</li>
+          <li><strong>A camada de operação (Seção H) usa premissas fictícias</strong> de reativação, troca de plano e trial. A análise de sobrevivência segue olhando só o primeiro período.</li>
           <li>O Kaplan-Meier agregado assume censura não informativa e mistura safras com riscos diferentes (reajuste, Copa): pequenas diferenças em relação à verdade são esperadas.</li>
+          <li>O modelo fora do tempo subestima o cancelamento depois de um evento que não viu (reajuste de preço): em produção, precisa de reajuste periódico.</li>
           <li>O efeito do reajuste é <strong>associação</strong>, não causalidade medida por experimento.</li>
-          <li><strong>Não foi feito:</strong> modelos de fragilidade ou de cura, reativações, upgrade de plano, validação fora da amostra.</li>
+          <li><strong>Não foi feito:</strong> modelos de fragilidade ou de cura no modelo principal, múltiplas reativações, efeito dos upgrades sobre o risco, efeitos que variam no tempo para o dataset público e validação com dado de operação real.</li>
         </ul>
       </section>
 

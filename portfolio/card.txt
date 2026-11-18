@@ -1,1 +1,1 @@
-Análise de sobrevivência da retenção de assinantes: Kaplan-Meier, log-rank com Holm, Cox com riscos proporcionais violados e corrigidos, RMST/LTV por canal e riscos competitivos, com 106 testes. Dados sintéticos, código aberto.
+Sobrevivência de assinantes: Kaplan-Meier, Cox com riscos proporcionais violados e corrigidos, LTV por canal com CAC incerto, MRR e NRR, validação fora do tempo e em dado público, 160 testes. Dados sintéticos, código aberto.
