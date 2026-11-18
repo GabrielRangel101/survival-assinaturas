@@ -23,6 +23,15 @@ def test_arquivo_confere_com_o_sha256_e_a_licenca_esta_documentada():
     assert E.SHA256 in leia and "Apache-2.0" in leia and "não é um dado de operação real" in leia
 
 
+def test_conferencia_do_hash_ignora_so_o_fim_de_linha(tmp_path, monkeypatch):
+    crlf = tmp_path / "telco.csv"
+    crlf.write_bytes(E.ARQUIVO.read_bytes().replace(b"\n", b"\r\n"))
+    monkeypatch.setattr(E, "ARQUIVO", crlf)
+    assert E.conferir_arquivo() and len(E.carregar()) == 7032
+    crlf.write_bytes(crlf.read_bytes() + b"x")
+    assert not E.conferir_arquivo()
+
+
 def test_arquivo_adulterado_e_recusado(monkeypatch):
     monkeypatch.setattr(E, "SHA256", "0" * 64)
     with pytest.raises(ValueError):

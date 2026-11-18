@@ -1,6 +1,8 @@
 # Fins de linha: texto normalizado em LF no repositório
 * text=auto
 *.png binary
+# dataset publico: bytes intocados (o SHA-256 e conferido a cada execucao)
+data_externo/*.csv -text
 
 # Arquivos gerados por run_all.py: não contam nas estatísticas de linguagem do GitHub
 report/*.html linguist-generated=true

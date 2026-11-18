@@ -45,7 +45,9 @@ ROT_COV = {
 
 
 def conferir_arquivo() -> bool:
-    return hashlib.sha256(ARQUIVO.read_bytes()).hexdigest() == SHA256
+    """Confere o SHA-256 ignorando só a diferença de fim de linha (um checkout no Windows pode converter LF em CRLF)."""
+    dados = ARQUIVO.read_bytes().replace(b"\r\n", b"\n")
+    return hashlib.sha256(dados).hexdigest() == SHA256
 
 
 def carregar() -> pd.DataFrame:
